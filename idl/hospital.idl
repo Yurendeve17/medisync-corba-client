@@ -23,24 +23,17 @@ module Hospital {
             in string phone
         );
 
-        Patient findPatientById(
-            in long id
-        );
-
+        Patient findPatientById(in long id);
+        
         PatientList listPatients();
 
     };
 
     interface QueueService {
-
-        void addToQueue(
-            in long patientId
-        );
-
+        void addToQueue(in long patientId);
         long getNextPatient();
-
+        long peekNextPatient();
         long getQueueSize();
-
     };
 
     struct Appointment {

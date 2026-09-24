@@ -54,6 +54,9 @@ class MediSyncApp:
     def add_patient_to_queue(self, patient_id: int) -> None:
         self.queue_service.add_to_queue(patient_id)
 
+    def peek_next_patient(self) -> int:
+        return self.queue_service.peek_next_patient()
+
     def get_next_patient(self) -> int:
         return self.queue_service.get_next_patient()
 

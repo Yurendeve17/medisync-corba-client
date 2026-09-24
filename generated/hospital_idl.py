@@ -177,6 +177,7 @@ omniORB.registerType(QueueService._NP_RepositoryId, _0_Hospital._d_QueueService,
 # QueueService operations and attributes
 QueueService._d_addToQueue = ((omniORB.tcInternal.tv_long, ), (), None)
 QueueService._d_getNextPatient = ((), (omniORB.tcInternal.tv_long, ), None)
+QueueService._d_peekNextPatient = ((), (omniORB.tcInternal.tv_long, ), None)
 QueueService._d_getQueueSize = ((), (omniORB.tcInternal.tv_long, ), None)
 
 # QueueService object reference
@@ -192,6 +193,9 @@ class _objref_QueueService (CORBA.Object):
     def getNextPatient(self, *args):
         return self._obj.invoke("getNextPatient", _0_Hospital.QueueService._d_getNextPatient, args)
 
+    def peekNextPatient(self, *args):
+        return self._obj.invoke("peekNextPatient", _0_Hospital.QueueService._d_peekNextPatient, args)
+
     def getQueueSize(self, *args):
         return self._obj.invoke("getQueueSize", _0_Hospital.QueueService._d_getQueueSize, args)
 
@@ -205,7 +209,7 @@ class QueueService (PortableServer.Servant):
     _NP_RepositoryId = _0_Hospital.QueueService._NP_RepositoryId
 
 
-    _omni_op_d = {"addToQueue": _0_Hospital.QueueService._d_addToQueue, "getNextPatient": _0_Hospital.QueueService._d_getNextPatient, "getQueueSize": _0_Hospital.QueueService._d_getQueueSize}
+    _omni_op_d = {"addToQueue": _0_Hospital.QueueService._d_addToQueue, "getNextPatient": _0_Hospital.QueueService._d_getNextPatient, "peekNextPatient": _0_Hospital.QueueService._d_peekNextPatient, "getQueueSize": _0_Hospital.QueueService._d_getQueueSize}
 
 QueueService._omni_skeleton = QueueService
 _0_Hospital__POA.QueueService = QueueService

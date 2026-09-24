@@ -94,6 +94,18 @@ class DoctorDashboard(QWidget):
             "sectionSubtitle"
         )
 
+        call_button = QPushButton(
+            "Chamar próximo"
+        )
+
+        call_button.setObjectName(
+            "successButton"
+        )
+
+        call_button.clicked.connect(
+            self.call_next_patient
+        )
+
         refresh_button = QPushButton(
             "Actualizar"
         )
@@ -109,6 +121,9 @@ class DoctorDashboard(QWidget):
             self.queue_size_label
         )
         queue_header.addStretch()
+        queue_header.addWidget(
+            call_button
+        )
         queue_header.addWidget(
             refresh_button
         )
@@ -213,7 +228,7 @@ class DoctorDashboard(QWidget):
 
             if queue_size > 0:
                 self.next_patient_value.setText(
-                    str(self.app.get_next_patient())
+                    str(self.app.peek_next_patient())
                 )
 
             else:
@@ -222,11 +237,55 @@ class DoctorDashboard(QWidget):
                 )
 
         except Exception as error:
+            print(
+                "ERRO AO CARREGAR FILA:",
+                type(error).__name__,
+                repr(error),
+                flush=True,
+            )
+
             QMessageBox.critical(
                 self,
                 "Erro",
                 (
-                    "Não foi possível carregar "
-                    f"a fila:\n{error}"
+                    "Não foi possível carregar a fila:\n"
+                    f"{type(error).__name__}: {error}"
+                ),
+            )
+
+    def call_next_patient(self):
+        try:
+            patient_id = self.app.get_next_patient()
+
+            if patient_id == 0:
+                QMessageBox.information(
+                    self,
+                    "Fila vazia",
+                    "Não existem pacientes na fila.",
+                )
+                return
+
+            self.next_patient_value.setText(
+                str(patient_id)
+            )
+
+            self.load_queue()
+
+            QMessageBox.information(
+                self,
+                "Paciente chamado",
+                (
+                    f"O paciente #{patient_id} "
+                    "foi chamado para atendimento."
+                ),
+            )
+
+        except Exception as error:
+            QMessageBox.critical(
+                self,
+                "Erro",
+                (
+                    "Não foi possível chamar "
+                    f"o próximo paciente:\n{error}"
                 ),
             )
