@@ -176,3 +176,9 @@ QPushButton#successButton {
 QPushButton#successButton:hover {
     background-color: #15803d;
 }
+
+QLabel#errorLabel {
+    color: #dc2626;
+    font-size: 13px;
+    font-weight: bold;
+}
