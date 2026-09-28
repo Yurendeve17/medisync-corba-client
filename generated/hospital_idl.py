@@ -71,6 +71,71 @@ omniORB.registerSkeleton(HelloService._NP_RepositoryId, HelloService)
 del HelloService
 __name__ = "Hospital"
 
+# struct User
+_0_Hospital.User = omniORB.newEmptyClass()
+class User (omniORB.StructBase):
+    _NP_RepositoryId = "IDL:Hospital/User:1.0"
+
+    def __init__(self, id, username, fullName, role):
+        self.id = id
+        self.username = username
+        self.fullName = fullName
+        self.role = role
+
+_0_Hospital.User = User
+_0_Hospital._d_User  = (omniORB.tcInternal.tv_struct, User, User._NP_RepositoryId, "User", "id", omniORB.tcInternal.tv_long, "username", (omniORB.tcInternal.tv_string,0), "fullName", (omniORB.tcInternal.tv_string,0), "role", (omniORB.tcInternal.tv_string,0))
+_0_Hospital._tc_User = omniORB.tcInternal.createTypeCode(_0_Hospital._d_User)
+omniORB.registerType(User._NP_RepositoryId, _0_Hospital._d_User, _0_Hospital._tc_User)
+del User
+
+# interface AuthService
+_0_Hospital._d_AuthService = (omniORB.tcInternal.tv_objref, "IDL:Hospital/AuthService:1.0", "AuthService")
+omniORB.typeMapping["IDL:Hospital/AuthService:1.0"] = _0_Hospital._d_AuthService
+_0_Hospital.AuthService = omniORB.newEmptyClass()
+class AuthService :
+    _NP_RepositoryId = _0_Hospital._d_AuthService[1]
+
+    def __init__(self, *args, **kw):
+        raise RuntimeError("Cannot construct objects of this type.")
+
+    _nil = CORBA.Object._nil
+
+
+_0_Hospital.AuthService = AuthService
+_0_Hospital._tc_AuthService = omniORB.tcInternal.createTypeCode(_0_Hospital._d_AuthService)
+omniORB.registerType(AuthService._NP_RepositoryId, _0_Hospital._d_AuthService, _0_Hospital._tc_AuthService)
+
+# AuthService operations and attributes
+AuthService._d_login = (((omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:Hospital/User:1.0"], ), None)
+
+# AuthService object reference
+class _objref_AuthService (CORBA.Object):
+    _NP_RepositoryId = AuthService._NP_RepositoryId
+
+    def __init__(self, obj):
+        CORBA.Object.__init__(self, obj)
+
+    def login(self, *args):
+        return self._obj.invoke("login", _0_Hospital.AuthService._d_login, args)
+
+omniORB.registerObjref(AuthService._NP_RepositoryId, _objref_AuthService)
+_0_Hospital._objref_AuthService = _objref_AuthService
+del AuthService, _objref_AuthService
+
+# AuthService skeleton
+__name__ = "Hospital__POA"
+class AuthService (PortableServer.Servant):
+    _NP_RepositoryId = _0_Hospital.AuthService._NP_RepositoryId
+
+
+    _omni_op_d = {"login": _0_Hospital.AuthService._d_login}
+
+AuthService._omni_skeleton = AuthService
+_0_Hospital__POA.AuthService = AuthService
+omniORB.registerSkeleton(AuthService._NP_RepositoryId, AuthService)
+del AuthService
+__name__ = "Hospital"
+
 # struct Patient
 _0_Hospital.Patient = omniORB.newEmptyClass()
 class Patient (omniORB.StructBase):
@@ -177,6 +242,7 @@ omniORB.registerType(QueueService._NP_RepositoryId, _0_Hospital._d_QueueService,
 # QueueService operations and attributes
 QueueService._d_addToQueue = ((omniORB.tcInternal.tv_long, ), (), None)
 QueueService._d_getNextPatient = ((), (omniORB.tcInternal.tv_long, ), None)
+QueueService._d_peekNextPatient = ((), (omniORB.tcInternal.tv_long, ), None)
 QueueService._d_getQueueSize = ((), (omniORB.tcInternal.tv_long, ), None)
 
 # QueueService object reference
@@ -192,6 +258,9 @@ class _objref_QueueService (CORBA.Object):
     def getNextPatient(self, *args):
         return self._obj.invoke("getNextPatient", _0_Hospital.QueueService._d_getNextPatient, args)
 
+    def peekNextPatient(self, *args):
+        return self._obj.invoke("peekNextPatient", _0_Hospital.QueueService._d_peekNextPatient, args)
+
     def getQueueSize(self, *args):
         return self._obj.invoke("getQueueSize", _0_Hospital.QueueService._d_getQueueSize, args)
 
@@ -205,7 +274,7 @@ class QueueService (PortableServer.Servant):
     _NP_RepositoryId = _0_Hospital.QueueService._NP_RepositoryId
 
 
-    _omni_op_d = {"addToQueue": _0_Hospital.QueueService._d_addToQueue, "getNextPatient": _0_Hospital.QueueService._d_getNextPatient, "getQueueSize": _0_Hospital.QueueService._d_getQueueSize}
+    _omni_op_d = {"addToQueue": _0_Hospital.QueueService._d_addToQueue, "getNextPatient": _0_Hospital.QueueService._d_getNextPatient, "peekNextPatient": _0_Hospital.QueueService._d_peekNextPatient, "getQueueSize": _0_Hospital.QueueService._d_getQueueSize}
 
 QueueService._omni_skeleton = QueueService
 _0_Hospital__POA.QueueService = QueueService

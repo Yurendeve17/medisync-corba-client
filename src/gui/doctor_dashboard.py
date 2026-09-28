@@ -1,8 +1,13 @@
 from PySide6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
     QLabel,
     QPushButton,
-    QVBoxLayout,
-    QWidget,
+    QFrame,
+    QTableWidget,
+    QTableWidgetItem,
+    QMessageBox,
 )
 
 
@@ -13,25 +18,274 @@ class DoctorDashboard(QWidget):
         self.app = app
         self.stack = stack
 
-        layout = QVBoxLayout(self)
+        main_layout = QVBoxLayout(self)
 
-        title = QLabel("Dashboard do Médico")
-
-        description = QLabel(
-            "Aqui será possível consultar a fila "
-            "e atender pacientes."
+        main_layout.setContentsMargins(
+            40,
+            30,
+            40,
+            30,
         )
+
+        main_layout.setSpacing(20)
+
+        # -------------------------
+        # Cabeçalho
+        # -------------------------
+
+        header_layout = QHBoxLayout()
+
+        title_layout = QVBoxLayout()
+
+        title = QLabel("Área do Médico")
+        title.setObjectName("sectionTitle")
+
+        subtitle = QLabel(
+            "Gestão da fila e atendimento de pacientes"
+        )
+        subtitle.setObjectName("sectionSubtitle")
+
+        title_layout.addWidget(title)
+        title_layout.addWidget(subtitle)
 
         back_button = QPushButton("Voltar")
-
-        layout.addWidget(title)
-        layout.addWidget(description)
-        layout.addWidget(back_button)
-        layout.addStretch()
-
+        back_button.setObjectName("secondaryButton")
         back_button.clicked.connect(
-            self.go_back
+            lambda: self.stack.setCurrentIndex(0)
         )
 
-    def go_back(self):
-        self.stack.setCurrentIndex(0)
+        header_layout.addLayout(title_layout)
+        header_layout.addStretch()
+        header_layout.addWidget(back_button)
+
+        main_layout.addLayout(header_layout)
+
+        # -------------------------
+        # Estado da fila
+        # -------------------------
+
+        queue_card = QFrame()
+        queue_card.setObjectName("card")
+
+        queue_layout = QVBoxLayout(queue_card)
+
+        queue_layout.setContentsMargins(
+            20,
+            18,
+            20,
+            18,
+        )
+
+        queue_layout.setSpacing(10)
+
+        queue_header = QHBoxLayout()
+
+        queue_title = QLabel(
+            "Fila de atendimento"
+        )
+        queue_title.setObjectName(
+            "sectionTitle"
+        )
+
+        self.queue_size_label = QLabel(
+            "Na fila: 0"
+        )
+        self.queue_size_label.setObjectName(
+            "sectionSubtitle"
+        )
+
+        call_button = QPushButton(
+            "Chamar próximo"
+        )
+
+        call_button.setObjectName(
+            "successButton"
+        )
+
+        call_button.clicked.connect(
+            self.call_next_patient
+        )
+
+        refresh_button = QPushButton(
+            "Actualizar"
+        )
+        refresh_button.setObjectName(
+            "secondaryButton"
+        )
+        refresh_button.clicked.connect(
+            self.load_queue
+        )
+
+        queue_header.addWidget(queue_title)
+        queue_header.addWidget(
+            self.queue_size_label
+        )
+        queue_header.addStretch()
+        queue_header.addWidget(
+            call_button
+        )
+        queue_header.addWidget(
+            refresh_button
+        )
+
+        queue_layout.addLayout(queue_header)
+
+        # -------------------------
+        # Próximo paciente
+        # -------------------------
+
+        next_patient_card = QFrame()
+        next_patient_card.setObjectName(
+            "roleCard"
+        )
+
+        next_patient_layout = QHBoxLayout(
+            next_patient_card
+        )
+
+        next_patient_layout.setContentsMargins(
+            20,
+            15,
+            20,
+            15,
+        )
+
+        next_label = QLabel(
+            "Próximo paciente"
+        )
+        next_label.setObjectName(
+            "sectionSubtitle"
+        )
+
+        self.next_patient_value = QLabel(
+            "—"
+        )
+        self.next_patient_value.setObjectName(
+            "sectionTitle"
+        )
+
+        next_patient_layout.addWidget(
+            next_label
+        )
+
+        next_patient_layout.addWidget(
+            self.next_patient_value
+        )
+
+        next_patient_layout.addStretch()
+
+        queue_layout.addWidget(
+            next_patient_card
+        )
+
+        # -------------------------
+        # Tabela da fila
+        # -------------------------
+
+        self.queue_table = QTableWidget()
+
+        self.queue_table.setColumnCount(2)
+
+        self.queue_table.setHorizontalHeaderLabels(
+            [
+                "Posição",
+                "ID do paciente",
+            ]
+        )
+
+        self.queue_table.setEditTriggers(
+            QTableWidget.NoEditTriggers
+        )
+
+        self.queue_table.setSelectionBehavior(
+            QTableWidget.SelectRows
+        )
+
+        self.queue_table.horizontalHeader().setStretchLastSection(
+            True
+        )
+
+        queue_layout.addWidget(
+            self.queue_table
+        )
+
+        main_layout.addWidget(
+            queue_card,
+            1,
+        )
+
+        self.load_queue()
+
+    def load_queue(self):
+        try:
+            queue_size = self.app.get_queue_size()
+
+            self.queue_size_label.setText(
+                f"Na fila: {queue_size}"
+            )
+
+            self.queue_table.setRowCount(0)
+
+            if queue_size > 0:
+                self.next_patient_value.setText(
+                    str(self.app.peek_next_patient())
+                )
+
+            else:
+                self.next_patient_value.setText(
+                    "Nenhum paciente"
+                )
+
+        except Exception as error:
+            print(
+                "ERRO AO CARREGAR FILA:",
+                type(error).__name__,
+                repr(error),
+                flush=True,
+            )
+
+            QMessageBox.critical(
+                self,
+                "Erro",
+                (
+                    "Não foi possível carregar a fila:\n"
+                    f"{type(error).__name__}: {error}"
+                ),
+            )
+
+    def call_next_patient(self):
+        try:
+            patient_id = self.app.get_next_patient()
+
+            if patient_id == 0:
+                QMessageBox.information(
+                    self,
+                    "Fila vazia",
+                    "Não existem pacientes na fila.",
+                )
+                return
+
+            self.next_patient_value.setText(
+                str(patient_id)
+            )
+
+            self.load_queue()
+
+            QMessageBox.information(
+                self,
+                "Paciente chamado",
+                (
+                    f"O paciente #{patient_id} "
+                    "foi chamado para atendimento."
+                ),
+            )
+
+        except Exception as error:
+            QMessageBox.critical(
+                self,
+                "Erro",
+                (
+                    "Não foi possível chamar "
+                    f"o próximo paciente:\n{error}"
+                ),
+            )

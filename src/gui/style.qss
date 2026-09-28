@@ -168,3 +168,17 @@ QPushButton#activeButton {
 QPushButton#activeButton:hover {
     background-color: #1d4ed8;
 }
+
+QPushButton#successButton {
+    background-color: #16a34a;
+}
+
+QPushButton#successButton:hover {
+    background-color: #15803d;
+}
+
+QLabel#errorLabel {
+    color: #dc2626;
+    font-size: 13px;
+    font-weight: bold;
+}

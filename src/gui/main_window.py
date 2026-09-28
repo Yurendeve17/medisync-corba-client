@@ -3,12 +3,13 @@ from PySide6.QtWidgets import (
     QStackedWidget,
 )
 
-from gui.role_selection import RoleSelection
+from gui.login_page import LoginPage
 from gui.reception_dashboard import ReceptionDashboard
 from gui.doctor_dashboard import DoctorDashboard
 
 
 class MainWindow(QMainWindow):
+
     def __init__(self, app):
         super().__init__()
 
@@ -19,7 +20,7 @@ class MainWindow(QMainWindow):
 
         self.stack = QStackedWidget()
 
-        self.role_selection = RoleSelection()
+        self.login_page = LoginPage(app)
 
         self.reception_dashboard = ReceptionDashboard(
             app,
@@ -32,7 +33,7 @@ class MainWindow(QMainWindow):
         )
 
         self.stack.addWidget(
-            self.role_selection
+            self.login_page
         )
 
         self.stack.addWidget(
@@ -43,12 +44,20 @@ class MainWindow(QMainWindow):
             self.doctor_dashboard
         )
 
-        self.role_selection.reception_selected.connect(
-            lambda: self.stack.setCurrentIndex(1)
-        )
-
-        self.role_selection.doctor_selected.connect(
-            lambda: self.stack.setCurrentIndex(2)
+        self.login_page.login_successful.connect(
+            self.handle_login
         )
 
         self.setCentralWidget(self.stack)
+
+    def handle_login(self, user):
+
+        if user.role == "RECEPTION":
+            self.stack.setCurrentWidget(
+                self.reception_dashboard
+            )
+
+        elif user.role == "DOCTOR":
+            self.stack.setCurrentWidget(
+                self.doctor_dashboard
+            )

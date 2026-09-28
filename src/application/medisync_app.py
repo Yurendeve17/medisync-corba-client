@@ -1,14 +1,18 @@
 from typing import Any
 
 from corba_client import CorbaClient
+from services.auth_service import AuthService
 from services.patient_service import PatientService
 from services.queue_service import QueueService
 from services.appointment_service import AppointmentService
 
-
 class MediSyncApp:
     def __init__(self):
         self.corba_client = CorbaClient()
+
+        self.auth_service = AuthService(
+            self.corba_client
+        )
 
         self.patient_service = PatientService(
             self.corba_client
@@ -22,8 +26,29 @@ class MediSyncApp:
             self.corba_client
         )
 
+        self.current_user = None
+
     def close(self) -> None:
         self.corba_client.close()
+
+    # Auteticação
+
+    def login(
+        self,
+        username: str,
+        password: str,
+    ):
+        user = self.auth_service.login(
+            username,
+            password,
+        )
+
+        self.current_user = user
+
+        return user
+
+    def logout(self) -> None:
+        self.current_user = None
 
     # Pacientes
 
@@ -53,6 +78,9 @@ class MediSyncApp:
 
     def add_patient_to_queue(self, patient_id: int) -> None:
         self.queue_service.add_to_queue(patient_id)
+
+    def peek_next_patient(self) -> int:
+        return self.queue_service.peek_next_patient()
 
     def get_next_patient(self) -> int:
         return self.queue_service.get_next_patient()

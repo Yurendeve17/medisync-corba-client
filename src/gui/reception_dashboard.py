@@ -373,6 +373,18 @@ class ReceptionDashboard(QWidget):
             "sectionTitle"
         )
 
+        queue_button = QPushButton(
+            "Adicionar à fila"
+        )
+
+        queue_button.setObjectName(
+            "successButton"
+        )
+
+        queue_button.clicked.connect(
+            self.add_selected_patient_to_queue
+        )
+
         refresh_patients_button = QPushButton(
             "Actualizar"
         )
@@ -390,6 +402,10 @@ class ReceptionDashboard(QWidget):
         )
 
         patients_header.addStretch()
+
+        patients_header.addWidget(
+            queue_button
+        )
 
         patients_header.addWidget(
             refresh_patients_button
@@ -707,6 +723,57 @@ class ReceptionDashboard(QWidget):
                 (
                     "Não foi possível carregar as consultas:\n"
                     f"{error}"
+                )
+            )
+
+    def add_selected_patient_to_queue(self):
+        selected_rows = (
+            self.patients_table
+            .selectionModel()
+            .selectedRows()
+        )
+
+        if not selected_rows:
+            self.show_error(
+                "Seleccione um paciente antes de o adicionar à fila."
+            )
+            return
+
+        row = selected_rows[0].row()
+
+        patient_id_item = (
+            self.patients_table.item(row, 0)
+        )
+
+        if patient_id_item is None:
+            self.show_error(
+                "Não foi possível obter o ID do paciente."
+            )
+            return
+
+        patient_id = int(
+            patient_id_item.text()
+        )
+
+        try:
+            self.app.add_patient_to_queue(
+                patient_id
+            )
+
+            QMessageBox.information(
+                self,
+                "Sucesso",
+                (
+                    f"O paciente #{patient_id} "
+                    "foi adicionado à fila."
+                ),
+            )
+
+        except Exception as error:
+            self.show_error(
+                (
+                    "Não foi possível adicionar "
+                    f"o paciente à fila:\n{error}"
                 )
             )
 
