@@ -14,7 +14,8 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("MediSync")
-        self.resize(900, 600)
+        self.resize(1440, 900)
+        self.setMinimumSize(1100, 700)
 
         self.app = app
 
