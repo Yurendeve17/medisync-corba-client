@@ -1,3 +1,4 @@
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -8,15 +9,21 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QMessageBox,
+    QToolButton, QMenu,
 )
+
+from .icons import qicon
+
 
 
 class DoctorDashboard(QWidget):
-    def __init__(self, app, stack):
+    def __init__(self, app, stack, logout_callback=None):
         super().__init__()
 
         self.app = app
         self.stack = stack
+        self.logout_callback = logout_callback
+        self.current_user = None
 
         main_layout = QVBoxLayout(self)
 
@@ -54,8 +61,21 @@ class DoctorDashboard(QWidget):
             lambda: self.stack.setCurrentIndex(0)
         )
 
+        self.profile_button = QToolButton()
+        self.profile_button.setObjectName("profileButton")
+        self.profile_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.profile_button.setPopupMode(QToolButton.InstantPopup)
+        self.profile_button.setIcon(qicon("user", "#24425c", 22))
+        self.profile_button.setText("Utilizador\\nMédico")
+        menu = QMenu(self.profile_button)
+        menu.addAction(qicon("user", "#0ca466", 16), "Meu perfil").triggered.connect(self.show_profile)
+        menu.addSeparator()
+        menu.addAction(qicon("logout", "#d14d4d", 16), "Terminar sessão").triggered.connect(self.request_logout)
+        self.profile_button.setMenu(menu)
+
         header_layout.addLayout(title_layout)
         header_layout.addStretch()
+        header_layout.addWidget(self.profile_button)
         header_layout.addWidget(back_button)
 
         main_layout.addLayout(header_layout)
@@ -252,6 +272,25 @@ class DoctorDashboard(QWidget):
                     f"{type(error).__name__}: {error}"
                 ),
             )
+
+    def set_current_user(self, user):
+        self.current_user = user
+        full_name = getattr(user, "fullName", "") or getattr(user, "username", "Utilizador")
+        role = getattr(user, "role", "")
+        role_label = {"RECEPTION": "Recepção", "DOCTOR": "Médico"}.get(role, role or "Utilizador")
+        self.profile_button.setText(f"{full_name}\\n{role_label}")
+
+    def show_profile(self):
+        user = self.current_user or getattr(self.app, "current_user", None)
+        if user is None:
+            return
+        role = getattr(user, "role", "")
+        role_label = {"RECEPTION": "Recepção", "DOCTOR": "Médico"}.get(role, role or "Utilizador")
+        QMessageBox.information(self, "Meu perfil", f"Nome: {getattr(user, 'fullName', '')}\\nUtilizador: {getattr(user, 'username', '')}\\nPerfil: {role_label}")
+
+    def request_logout(self):
+        if self.logout_callback:
+            self.logout_callback()
 
     def call_next_patient(self):
         try:

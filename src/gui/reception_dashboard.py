@@ -1,152 +1,417 @@
-from PySide6.QtCore import Qt, QDateTime, QSize
-from PySide6.QtGui import QIcon
-
-from .icons import pixmap, qicon
-
+from PySide6.QtCore import Qt, QDateTime, QEvent, QObject, QPoint, QPointF, QRect
+from PySide6.QtGui import QColor, QFont, QKeySequence, QPainter, QPainterPath, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QMessageBox,
-    QStackedWidget, QDateEdit, QTimeEdit, QSizePolicy, QToolButton
+    QStackedWidget, QDateEdit, QTimeEdit, QToolButton, QSizePolicy, QMenu,
+    QScrollArea, QGraphicsDropShadowEffect,
 )
+
+from .icons import pixmap, qicon, illustration
+
+# ----------------------------------------------------------------------
+# Medidas do layout (um único sítio para manter tudo harmónico)
+# ----------------------------------------------------------------------
+SIDEBAR_W = 232
+TOPBAR_H = 72
+PAGE_MAX_W = 1000        # largura máxima do conteúdo (cabeçalho e cartão alinhados)
+TABLE_MAX_W = 1200
+FIELD_H = 42             # altura única de todos os campos
+ROW_GAP = 10             # espaço vertical entre linhas do formulário
+COL_GAP = 16             # espaço horizontal entre etiqueta e campo
+LABEL_W_SHORT = 76       # coluna de etiquetas: Agendar consulta
+LABEL_W_LONG = 162       # coluna de etiquetas: Registar paciente
+
+
+def _repolish(widget):
+    widget.style().unpolish(widget)
+    widget.style().polish(widget)
+
+
+def _initials(name):
+    parts = [p for p in (name or "").split() if p]
+    if not parts:
+        return "U"
+    if len(parts) == 1:
+        return parts[0][0].upper()
+    return (parts[0][0] + parts[-1][0]).upper()
+
+
+def _avatar(initials, size=38):
+    dpr = 2
+    pm = QPixmap(size * dpr, size * dpr)
+    pm.setDevicePixelRatio(dpr)
+    pm.fill(Qt.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.Antialiasing)
+    p.setPen(Qt.NoPen)
+    p.setBrush(QColor("#12b86e"))
+    p.drawEllipse(0, 0, size, size)
+    font = QFont(p.font())
+    font.setBold(True)
+    font.setPixelSize(int(size * 0.36))
+    p.setFont(font)
+    p.setPen(QColor("#ffffff"))
+    p.drawText(QRect(0, 0, size, size), Qt.AlignCenter, initials)
+    p.end()
+    return pm
+
+
+class _IconOverlay(QObject):
+    """Ícone decorativo desenhado dentro de um campo (esquerda ou direita)."""
+
+    def __init__(self, host, icon_name, color="#5b7a90", side="left", size=18, margin=14):
+        super().__init__(host)
+        self.host, self.side, self.size, self.margin = host, side, size, margin
+        self.label = QLabel(host)
+        self.label.setPixmap(pixmap(icon_name, color, size))
+        self.label.setFixedSize(size, size)
+        self.label.setAttribute(Qt.WA_TransparentForMouseEvents)
+        host.installEventFilter(self)
+        self._place()
+
+    def _place(self):
+        x = self.margin if self.side == "left" else self.host.width() - self.size - self.margin
+        self.label.move(x, (self.host.height() - self.size) // 2)
+        self.label.raise_()
+
+    def eventFilter(self, obj, event):
+        if event.type() in (QEvent.Resize, QEvent.Show):
+            self._place()
+        return False
+
+
+class _WheelGuard(QObject):
+    """Evita que a roda do rato altere combos/datas ao fazer scroll na página."""
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Wheel and not obj.hasFocus():
+            event.ignore()
+            return True  # o Qt reencaminha o evento ignorado para o QScrollArea
+        return False
+
+
+class NavItem(QPushButton):
+    """Item do menu lateral (ícone + texto + chevron opcional)."""
+
+    def __init__(self, icon_name, text, sub=False, expandable=False):
+        super().__init__()
+        self.icon_name = icon_name
+        self.setObjectName("navSub" if sub else "navItem")
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFixedHeight(44)
+        self.setProperty("active", False)
+        self.setProperty("group", expandable)
+
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(26 if sub else 14, 0, 10, 0)
+        lay.setSpacing(12)
+        self._icon = QLabel()
+        self._icon.setFixedSize(20, 20)
+        self._text = QLabel(text)
+        self._text.setObjectName("navLabel")
+        lay.addWidget(self._icon)
+        lay.addWidget(self._text, 1)
+        self._chevron = None
+        if expandable:
+            self._chevron = QLabel()
+            self._chevron.setFixedSize(16, 16)
+            lay.addWidget(self._chevron)
+            self.set_expanded(True)
+        for w in (self._icon, self._text, self._chevron):
+            if w is not None:
+                w.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self._refresh_icon()
+
+    def _refresh_icon(self):
+        bright = self.property("active") or self.property("group")
+        self._icon.setPixmap(pixmap(self.icon_name, "#ffffff" if bright else "#bcd6d0", 20))
+
+    def set_active(self, active):
+        self.setProperty("active", bool(active))
+        for w in (self, self._text):
+            _repolish(w)
+        self._refresh_icon()
+
+    def set_expanded(self, expanded):
+        if self._chevron is not None:
+            self._chevron.setPixmap(pixmap("chevron-up" if expanded else "chevron-down", "#dff3ec", 16))
+
+
+class Sidebar(QFrame):
+    """Barra lateral com as ondas decorativas no fundo (como no design)."""
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        w, h = self.width(), self.height()
+        for base, amp, color in ((h - 70, 26, QColor(20, 170, 105, 55)), (h - 42, 20, QColor(12, 120, 80, 90))):
+            path = QPainterPath(QPointF(0, h))
+            path.lineTo(0, base)
+            path.cubicTo(w * 0.30, base - amp * 1.6, w * 0.60, base + amp, w, base - amp * 0.6)
+            path.lineTo(w, h)
+            path.closeSubpath()
+            p.fillPath(path, color)
+        p.end()
 
 
 class ReceptionDashboard(QWidget):
-    """Interface moderna da recepção, mantendo os serviços CORBA existentes."""
+    """Interface da recepção: layout responsivo e serviços CORBA existentes."""
 
-    def __init__(self, app, stack):
+    def __init__(self, app, stack, logout_callback=None):
         super().__init__()
         self.app = app
         self.stack = stack
+        self.logout_callback = logout_callback
+        self.current_user = None
         self.setObjectName("receptionDashboard")
-
         self.content_stack = QStackedWidget()
         self.nav_buttons = []
-
+        self._wheel_guard = _WheelGuard(self)
         self._build_shell()
         self._build_pages()
-
+        QShortcut(QKeySequence("Ctrl+K"), self, activated=self.search_input.setFocus)
         self.show_page(0)
         self.load_patients()
         self.load_appointments()
 
     # ------------------------------------------------------------------
-    # Shell
+    # Shell (menu lateral + barra superior)
     # ------------------------------------------------------------------
     def _build_shell(self):
         shell = QHBoxLayout(self)
         shell.setContentsMargins(0, 0, 0, 0)
         shell.setSpacing(0)
-
-        sidebar = QFrame()
-        sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(210)
-
-        side = QVBoxLayout(sidebar)
-        side.setContentsMargins(14, 18, 14, 18)
-        side.setSpacing(7)
-
-        logo = QLabel()
-        logo.setPixmap(pixmap("heart-pulse", "#ffffff", 30))
-        logo_text = QLabel("MediSync")
-        logo_text.setObjectName("logoText")
-        logo.setObjectName("logo")
-        logo_sub = QLabel("Sistema Hospitalar")
-        logo_sub.setObjectName("logoSubtitle")
-        logo_row = QHBoxLayout()
-        logo_row.setContentsMargins(4, 0, 0, 0)
-        logo_row.setSpacing(8)
-        logo_row.addWidget(logo)
-        logo_row.addWidget(logo_text)
-        logo_row.addStretch()
-        side.addLayout(logo_row)
-        side.addWidget(logo_sub)
-        side.addSpacing(22)
-
-        side.addWidget(self._nav("home", "Início", 0))
-        side.addWidget(self._nav("users", "Recepção", 0, parent=True))
-        side.addWidget(self._nav("calendar", "Agendar consulta", 1))
-        side.addWidget(self._nav("user-plus", "Registar paciente", 2))
-        side.addWidget(self._nav("users", "Pacientes", 3))
-        side.addWidget(self._nav("clipboard", "Consultas", 4))
-        side.addWidget(self._nav("stethoscope", "Médicos", 5))
-        side.addWidget(self._nav("bar-chart", "Relatórios", 6))
-        side.addWidget(self._nav("settings", "Configurações", 7))
-        side.addStretch()
-
-        footer_icon = QLabel("〰")
-        footer_icon.setObjectName("sidebarPulse")
-        footer_text = QLabel("Cuidando de pessoas,\ntodos os dias.")
-        footer_text.setObjectName("sidebarFooter")
-        side.addWidget(footer_icon)
-        side.addWidget(footer_text)
-
-        shell.addWidget(sidebar)
+        shell.addWidget(self._build_sidebar())
 
         right = QVBoxLayout()
         right.setContentsMargins(0, 0, 0, 0)
         right.setSpacing(0)
-
-        header = QFrame()
-        header.setObjectName("topbar")
-        header.setFixedHeight(76)
-        h = QHBoxLayout(header)
-        h.setContentsMargins(28, 14, 28, 14)
-
-        self.search_input = QLineEdit()
-        self.search_input.setObjectName("globalSearch")
-        self.search_input.setPlaceholderText(
-            "Pesquisar paciente, consulta, médico..."
-        )
-        self.search_input.setClearButtonEnabled(True)
-        self.search_input.addAction(qicon("search", "#58738b", 18), QLineEdit.LeadingPosition)
-        self.search_input.setMaximumWidth(380)
-        h.addWidget(self.search_input)
-        h.addStretch()
-
-        bell = QLabel()
-        bell.setPixmap(pixmap("bell", "#49657d", 19))
-        bell.setObjectName("topIcon")
-        h.addWidget(bell)
-        count = QLabel("3")
-        count.setObjectName("topCount")
-        h.addWidget(count)
-        calendar = QLabel()
-        calendar.setPixmap(pixmap("grid", "#49657d", 18))
-        calendar.setObjectName("topIcon")
-        h.addWidget(calendar)
-        theme = QLabel()
-        theme.setPixmap(pixmap("sun", "#49657d", 19))
-        theme.setObjectName("topIcon")
-        h.addWidget(theme)
-
-        separator = QFrame()
-        separator.setFrameShape(QFrame.VLine)
-        separator.setObjectName("topSeparator")
-        h.addWidget(separator)
-
-        user = QLabel("  Yuren Deve\n  Recepção")
-        user.setObjectName("userProfile")
-        h.addWidget(user)
-
-        right.addWidget(header)
+        right.addWidget(self._build_topbar())
         right.addWidget(self.content_stack, 1)
         shell.addLayout(right, 1)
 
-    def _nav(self, icon, text, index, parent=False):
-        button = QPushButton(text)
-        button.setObjectName("navButton")
-        button.setIcon(qicon(icon, "#ffffff" if parent else "#c8dcda", 18))
-        button.setIconSize(QSize(18, 18))
-        if parent:
-            button.setObjectName("navSection")
-            button.setIcon(qicon(icon, "#ffffff", 18))
-        else:
-            button.clicked.connect(lambda _, i=index: self.show_page(i))
-            self.nav_buttons.append((index, button))
-        return button
+    def _build_sidebar(self):
+        sidebar = Sidebar()
+        sidebar.setObjectName("sidebar")
+        sidebar.setFixedWidth(SIDEBAR_W)
+        side = QVBoxLayout(sidebar)
+        side.setContentsMargins(14, 22, 14, 18)
+        side.setSpacing(4)
+
+        logo_row = QHBoxLayout()
+        logo_row.setContentsMargins(6, 0, 0, 0)
+        logo_row.setSpacing(10)
+        logo_icon = QLabel()
+        logo_icon.setPixmap(pixmap("logo", "#12b86e", 42))
+        logo_icon.setFixedSize(42, 42)
+        logo_texts = QVBoxLayout()
+        logo_texts.setSpacing(0)
+        logo_text = QLabel("MediSync")
+        logo_text.setObjectName("logo")
+        logo_sub = QLabel("Sistema Hospitalar")
+        logo_sub.setObjectName("logoSubtitle")
+        logo_texts.addWidget(logo_text)
+        logo_texts.addWidget(logo_sub)
+        logo_row.addWidget(logo_icon)
+        logo_row.addLayout(logo_texts, 1)
+        side.addLayout(logo_row)
+        side.addSpacing(16)
+        side.addWidget(self._sidebar_divider())
+        side.addSpacing(12)
+
+        self._nav_item(side, "home", "Início", 0)
+        self.reception_group = NavItem("users", "Recepção", expandable=True)
+        self.reception_group.clicked.connect(self._toggle_reception_group)
+        side.addWidget(self.reception_group)
+        self.reception_sub = QWidget()
+        sub_l = QVBoxLayout(self.reception_sub)
+        sub_l.setContentsMargins(0, 0, 0, 0)
+        sub_l.setSpacing(4)
+        self._nav_item(sub_l, "calendar", "Agendar consulta", 1, sub=True)
+        self._nav_item(sub_l, "user", "Registar paciente", 2, sub=True)
+        side.addWidget(self.reception_sub)
+        self._nav_item(side, "users", "Pacientes", 3)
+        self._nav_item(side, "calendar", "Consultas", 4)
+        self._nav_item(side, "stethoscope", "Médicos", 5)
+        self._nav_item(side, "bar-chart", "Relatórios", 6)
+        self._nav_item(side, "settings", "Configurações", 7)
+        side.addStretch(1)
+
+        footer = QVBoxLayout()
+        footer.setContentsMargins(6, 0, 0, 34)
+        footer.setSpacing(6)
+        footer_icon = QLabel()
+        footer_icon.setPixmap(pixmap("heart-pulse", "#21d487", 30))
+        footer_text = QLabel("Cuidando de pessoas,\ntodos os dias.")
+        footer_text.setObjectName("sidebarFooter")
+        footer.addWidget(footer_icon)
+        footer.addWidget(footer_text)
+        side.addLayout(footer)
+        return sidebar
+
+    def _sidebar_divider(self):
+        line = QFrame()
+        line.setObjectName("sidebarDivider")
+        line.setFixedHeight(1)
+        return line
+
+    def _nav_item(self, layout, icon_name, text, index, sub=False):
+        item = NavItem(icon_name, text, sub=sub)
+        item.clicked.connect(lambda _=False, i=index: self.show_page(i))
+        self.nav_buttons.append((index, item))
+        layout.addWidget(item)
+        return item
+
+    def _toggle_reception_group(self):
+        expanded = not self.reception_sub.isVisible()
+        self.reception_sub.setVisible(expanded)
+        self.reception_group.set_expanded(expanded)
+
+    def _build_topbar(self):
+        header = QFrame()
+        header.setObjectName("topbar")
+        header.setFixedHeight(TOPBAR_H)
+        h = QHBoxLayout(header)
+        h.setContentsMargins(28, 0, 28, 0)
+        h.setSpacing(10)
+
+        self.search_box = QFrame()
+        self.search_box.setObjectName("searchBox")
+        self.search_box.setFixedHeight(42)
+        self.search_box.setMinimumWidth(300)
+        self.search_box.setMaximumWidth(460)
+        sb = QHBoxLayout(self.search_box)
+        sb.setContentsMargins(14, 0, 10, 0)
+        sb.setSpacing(10)
+        search_icon = QLabel()
+        search_icon.setPixmap(pixmap("search", "#6b8194", 18))
+        search_icon.setFixedSize(18, 18)
+        self.search_input = QLineEdit()
+        self.search_input.setObjectName("globalSearch")
+        self.search_input.setPlaceholderText("Pesquisar paciente, consulta, médico...")
+        self.search_input.installEventFilter(self)
+        kbd = QLabel("Ctrl + K")
+        kbd.setObjectName("kbdHint")
+        sb.addWidget(search_icon)
+        sb.addWidget(self.search_input, 1)
+        sb.addWidget(kbd)
+        h.addWidget(self.search_box, 1)
+        h.addStretch(0)
+
+        self.bell_button = QToolButton()
+        self.bell_button.setObjectName("topIconButton")
+        self.bell_button.setIcon(qicon("bell", "#466277", 20))
+        self.bell_button.setFixedSize(40, 40)
+        self.notification_badge = QLabel("3", self.bell_button)
+        self.notification_badge.setObjectName("notifBadge")
+        self.notification_badge.setAlignment(Qt.AlignCenter)
+        self.notification_badge.setGeometry(22, 3, 16, 16)
+        self.notification_badge.setAttribute(Qt.WA_TransparentForMouseEvents)
+        h.addWidget(self.bell_button)
+
+        theme_button = QToolButton()
+        theme_button.setObjectName("topIconButton")
+        theme_button.setIcon(qicon("sun", "#466277", 20))
+        theme_button.setFixedSize(40, 40)
+        h.addWidget(theme_button)
+
+        h.addSpacing(6)
+        separator = QFrame()
+        separator.setObjectName("topSeparator")
+        separator.setFixedSize(1, 34)
+        h.addWidget(separator)
+        h.addSpacing(6)
+
+        self.profile_button = QPushButton()
+        self.profile_button.setObjectName("userChip")
+        self.profile_button.setCursor(Qt.PointingHandCursor)
+        self.profile_button.setFixedHeight(52)
+        chip = QHBoxLayout(self.profile_button)
+        chip.setContentsMargins(8, 0, 8, 0)
+        chip.setSpacing(10)
+        self.avatar_label = QLabel()
+        self.avatar_label.setFixedSize(38, 38)
+        self.avatar_label.setPixmap(_avatar("U"))
+        names = QVBoxLayout()
+        names.setSpacing(0)
+        names.setContentsMargins(0, 0, 0, 0)
+        self.user_name_label = QLabel("Utilizador")
+        self.user_name_label.setObjectName("userName")
+        self.user_role_label = QLabel("Recepção")
+        self.user_role_label.setObjectName("userRole")
+        names.addStretch(1)
+        names.addWidget(self.user_name_label)
+        names.addWidget(self.user_role_label)
+        names.addStretch(1)
+        chevron = QLabel()
+        chevron.setPixmap(pixmap("chevron-down", "#6b8194", 14))
+        chevron.setFixedSize(14, 14)
+        chip.addWidget(self.avatar_label)
+        chip.addLayout(names)
+        chip.addWidget(chevron)
+        for w in (self.avatar_label, self.user_name_label, self.user_role_label, chevron):
+            w.setAttribute(Qt.WA_TransparentForMouseEvents)
+
+        self.profile_menu = QMenu(self.profile_button)
+        self.profile_menu.setObjectName("profileMenu")
+        self.profile_action = self.profile_menu.addAction(qicon("user", "#0ca466", 16), "Meu perfil")
+        self.profile_action.triggered.connect(self.show_profile)
+        self.profile_menu.addSeparator()
+        self.logout_action = self.profile_menu.addAction(qicon("logout", "#d14d4d", 16), "Terminar sessão")
+        self.logout_action.triggered.connect(self.request_logout)
+        self.profile_button.clicked.connect(self._open_profile_menu)
+        h.addWidget(self.profile_button)
+        return header
+
+    def eventFilter(self, obj, event):
+        # realce verde da caixa de pesquisa quando o campo tem foco
+        if obj is getattr(self, "search_input", None) and event.type() in (QEvent.FocusIn, QEvent.FocusOut):
+            self.search_box.setProperty("focused", event.type() == QEvent.FocusIn)
+            _repolish(self.search_box)
+        return super().eventFilter(obj, event)
+
+    def _open_profile_menu(self):
+        width = self.profile_menu.sizeHint().width()
+        pos = self.profile_button.mapToGlobal(QPoint(self.profile_button.width() - width, self.profile_button.height() + 4))
+        self.profile_menu.exec(pos)
+
+    def set_notification_count(self, count):
+        self.notification_badge.setText(str(count))
+        self.notification_badge.setVisible(count > 0)
+
+    def set_current_user(self, user):
+        self.current_user = user
+        full_name = getattr(user, "fullName", "") or getattr(user, "username", "Utilizador")
+        username = getattr(user, "username", "")
+        role = getattr(user, "role", "")
+        role_label = {"RECEPTION": "Recepção", "DOCTOR": "Médico"}.get(role, role or "Utilizador")
+        self.user_name_label.setText(full_name)
+        self.user_role_label.setText(role_label)
+        self.avatar_label.setPixmap(_avatar(_initials(full_name)))
+        self.profile_button.setToolTip(f"{full_name} ({username})")
+
+    def show_profile(self):
+        user = self.current_user or getattr(self.app, "current_user", None)
+        if user is None:
+            return
+        full_name = getattr(user, "fullName", "")
+        username = getattr(user, "username", "")
+        role = getattr(user, "role", "")
+        role_label = {"RECEPTION": "Recepção", "DOCTOR": "Médico"}.get(role, role or "Utilizador")
+        QMessageBox.information(
+            self,
+            "Meu perfil",
+            f"Nome: {full_name}\nUtilizador: {username}\nPerfil: {role_label}"
+        )
+
+    def request_logout(self):
+        if self.logout_callback:
+            self.logout_callback()
 
     # ------------------------------------------------------------------
-    # Pages
+    # Estrutura comum das páginas
     # ------------------------------------------------------------------
     def _build_pages(self):
         self.content_stack.addWidget(self._home_page())
@@ -154,443 +419,104 @@ class ReceptionDashboard(QWidget):
         self.content_stack.addWidget(self._register_page())
         self.content_stack.addWidget(self._patients_page())
         self.content_stack.addWidget(self._appointments_page())
+        self.content_stack.addWidget(self._placeholder_page("stethoscope", "Médicos", "Gestão do corpo clínico."))
+        self.content_stack.addWidget(self._placeholder_page("bar-chart", "Relatórios", "Indicadores e relatórios do hospital."))
+        self.content_stack.addWidget(self._placeholder_page("settings", "Configurações", "Preferências do sistema."))
 
-    def _target_page_header(self, icon, title, subtitle):
+    def _scaffold(self, max_width=PAGE_MAX_W):
+        """Página com scroll vertical e conteúdo centrado (cabeçalho e cartão alinhados).
+
+        Se o ecrã for pequeno, aparece scroll em vez de os widgets se sobreporem.
+        """
+        scroll = QScrollArea()
+        scroll.setObjectName("pageScroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        canvas = QWidget()
+        canvas.setObjectName("pageCanvas")
+        outer = QHBoxLayout(canvas)
+        outer.setContentsMargins(32, 12, 32, 20)
+        outer.setSpacing(0)
+
+        container = QWidget()
+        container.setMaximumWidth(max_width)
+        col = QVBoxLayout(container)
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(12)
+
+        outer.addStretch(1)
+        outer.addWidget(container, 100)
+        outer.addStretch(1)
+        scroll.setWidget(canvas)
+        return scroll, col
+
+    def _page_header(self, icon_name, title, subtitle, back=True, art=None):
         wrapper = QWidget()
         outer = QVBoxLayout(wrapper)
         outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(16)
+        outer.setSpacing(6)
+        if back:
+            back_btn = QPushButton("Voltar para o início")
+            back_btn.setObjectName("backButton")
+            back_btn.setCursor(Qt.PointingHandCursor)
+            back_btn.setIcon(qicon("arrow-left", "#49667d", 15))
+            back_btn.clicked.connect(lambda: self.show_page(0))
+            outer.addWidget(back_btn, 0, Qt.AlignLeft)
 
-        back = QPushButton("←   Voltar para o início")
-        back.setObjectName("backLink")
-        back.setCursor(Qt.PointingHandCursor)
-        back.clicked.connect(lambda: self.show_page(0))
-        outer.addWidget(back, 0, Qt.AlignLeft)
-
-        hero = QFrame()
-        hero.setObjectName("targetHero")
-        row = QHBoxLayout(hero)
-        row.setContentsMargins(4, 0, 4, 0)
-        row.setSpacing(18)
-
-        icon_box = QLabel()
-        icon_box.setObjectName("targetHeroIcon")
-        icon_box.setAlignment(Qt.AlignCenter)
-        icon_box.setPixmap(pixmap(icon, "#ffffff", 42))
-        icon_box.setFixedSize(72, 72)
-
-        texts = QVBoxLayout()
-        texts.setContentsMargins(0, 0, 0, 0)
-        texts.setSpacing(4)
-        title_label = QLabel(title)
-        title_label.setObjectName("targetPageTitle")
-        subtitle_label = QLabel(subtitle)
-        subtitle_label.setObjectName("targetPageSubtitle")
-        subtitle_label.setWordWrap(True)
-        texts.addWidget(title_label)
-        texts.addWidget(subtitle_label)
-
-        row.addWidget(icon_box)
-        row.addLayout(texts)
-        row.addStretch()
-        outer.addWidget(hero)
-        return wrapper
-
-    def _page_header(self, icon, title, subtitle):
-        wrapper = QFrame()
-        wrapper.setObjectName("pageHero")
-        layout = QHBoxLayout(wrapper)
-        layout.setContentsMargins(30, 26, 30, 18)
-
+        hero = QHBoxLayout()
+        hero.setContentsMargins(0, 0, 0, 0)
+        hero.setSpacing(18)
         icon_box = QLabel()
         icon_box.setObjectName("heroIcon")
+        icon_box.setPixmap(pixmap(icon_name, "#ffffff", 34))
         icon_box.setAlignment(Qt.AlignCenter)
-        icon_box.setPixmap(pixmap(icon, "#ffffff", 34))
-        icon_box.setFixedSize(62, 62)
-
+        icon_box.setFixedSize(72, 72)
         texts = QVBoxLayout()
-        texts.setSpacing(3)
+        texts.setSpacing(4)
+        texts.addStretch(1)
         t = QLabel(title)
         t.setObjectName("pageTitle")
         s = QLabel(subtitle)
         s.setObjectName("pageSubtitle")
+        s.setWordWrap(True)
         texts.addWidget(t)
         texts.addWidget(s)
-
-        layout.addWidget(icon_box)
-        layout.addSpacing(16)
-        layout.addLayout(texts)
-        layout.addStretch()
+        texts.addStretch(1)
+        hero.addWidget(icon_box, 0, Qt.AlignVCenter)
+        hero.addLayout(texts, 1)
+        if art:
+            art_label = QLabel()
+            art_label.setPixmap(illustration(art, 132, 84))
+            art_label.setFixedSize(132, 84)
+            hero.addWidget(art_label, 0, Qt.AlignVCenter)
+        outer.addLayout(hero)
         return wrapper
 
-    def _home_page(self):
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(30, 26, 30, 30)
-        layout.setSpacing(20)
-
-        layout.addWidget(self._page_header(
-            "user", "Área da Recepção",
-            "Gestão de pacientes e atendimento hospitalar"
-        ))
-
-        grid = QHBoxLayout()
-        grid.setSpacing(18)
-
-        grid.addWidget(self._action_card(
-            "calendar", "Agendar consulta",
-            "Marque uma consulta para um paciente já cadastrado.",
-            "Agendar consulta", 1, "successButton"
-        ))
-        grid.addWidget(self._action_card(
-            "user-plus", "Registar paciente",
-            "Adicione um novo paciente ao sistema.",
-            "Registar paciente", 2, "blueButton"
-        ))
-        layout.addLayout(grid)
-
-        stats = QHBoxLayout()
-        stats.setSpacing(18)
-        self.home_patient_stat = self._stat_card("users", "Pacientes", "0")
-        self.home_appointment_stat = self._stat_card("calendar", "Consultas", "0")
-        stats.addWidget(self.home_patient_stat)
-        stats.addWidget(self.home_appointment_stat)
-        layout.addLayout(stats)
-
-        layout.addStretch()
-        return page
-
-    def _action_card(self, icon, title, desc, button_text, page_index, button_style):
+    def _card(self, margins=(28, 18, 28, 22)):
         card = QFrame()
-        card.setObjectName("modernCard")
-        card.setMinimumHeight(230)
+        card.setObjectName("formCard")
+        shadow = QGraphicsDropShadowEffect(card)
+        shadow.setBlurRadius(28)
+        shadow.setOffset(0, 6)
+        shadow.setColor(QColor(16, 50, 77, 24))
+        card.setGraphicsEffect(shadow)
         lay = QVBoxLayout(card)
-        lay.setContentsMargins(24, 22, 24, 22)
-        lay.setSpacing(12)
+        lay.setContentsMargins(*margins)
+        lay.setSpacing(0)
+        return card, lay
 
-        ic = QLabel()
-        ic.setObjectName("cardIcon")
-        ic.setAlignment(Qt.AlignCenter)
-        ic.setPixmap(pixmap(icon, "#07945b", 26))
-        ic.setFixedSize(52, 52)
-        lay.addWidget(ic, alignment=Qt.AlignLeft)
-
-        t = QLabel(title)
-        t.setObjectName("cardTitle")
-        d = QLabel(desc)
-        d.setObjectName("cardDescription")
-        d.setWordWrap(True)
-        lay.addWidget(t)
-        lay.addWidget(d)
-        lay.addStretch()
-
-        b = QPushButton(button_text)
-        b.setObjectName(button_style)
-        b.clicked.connect(lambda: self.show_page(page_index))
-        b.setMinimumHeight(42)
-        lay.addWidget(b)
-        return card
-
-    def _stat_card(self, icon, title, value):
-        card = QFrame()
-        card.setObjectName("statCard")
-        lay = QHBoxLayout(card)
-        lay.setContentsMargins(20, 15, 20, 15)
-        ic = QLabel()
-        ic.setObjectName("statIcon")
-        ic.setPixmap(pixmap(icon, "#0aa365", 22))
-        lay.addWidget(ic)
-        texts = QVBoxLayout()
-        v = QLabel(value)
-        v.setObjectName("statValue")
-        v.setProperty("stat", True)
-        l = QLabel(title)
-        l.setObjectName("statLabel")
-        texts.addWidget(v)
-        texts.addWidget(l)
-        lay.addLayout(texts)
-        return card
-
-    def _appointment_page(self):
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(30, 24, 30, 30)
-        layout.setSpacing(16)
-
-        layout.addWidget(self._target_page_header(
-            "calendar-clock",
-            "Agendar consulta",
-            "Marque uma consulta para um paciente\njá cadastrado no sistema."
-        ))
-
-        card = QFrame()
-        card.setObjectName("modernCard")
-        card.setMaximumWidth(570)
-        form = QVBoxLayout(card)
-        form.setContentsMargins(26, 22, 26, 24)
-        form.setSpacing(11)
-
-        form.addWidget(self._section_label("user", "Dados do paciente"))
-
-        # ID + pesquisa
-        id_row = QHBoxLayout()
-        id_row.setSpacing(8)
-        self.appointment_patient_id_input = self._field("Ex.: 1202")
-        self.appointment_patient_id_input.setObjectName("appointmentPatientId")
-        id_row.addWidget(self.appointment_patient_id_input, 1)
-
-        search = QToolButton()
-        search.setObjectName("fieldSearchButton")
-        search.setIcon(qicon("search", "#45657b", 19))
-        search.setText("")
-        search.setToolTip("Pesquisar paciente")
-        search.clicked.connect(self.find_appointment_patient)
-        id_row.addWidget(search)
-
-        id_wrap = QWidget()
-        id_wrap.setLayout(id_row)
-        form.addWidget(self._labeled("ID do paciente", id_wrap))
-
-        self.appointment_patient_name_input = self._field("Nome do paciente")
-        self.appointment_patient_name_input.setObjectName("appointmentPatientName")
-        self.appointment_patient_name_input.addAction(qicon("user", "#1a9f70", 17), QLineEdit.LeadingPosition)
-        self.appointment_patient_name_input.setReadOnly(True)
-        form.addWidget(self._labeled("Nome", self.appointment_patient_name_input))
-
-        self.appointment_doctor_input = QComboBox()
-        self.appointment_doctor_input.addItems(
-            ["Seleccione o médico", "Dr. Carlos Silva", "Dra. Joana Paulo"]
-        )
-        form.addWidget(self._labeled("Médico", self.appointment_doctor_input))
-
-        form.addSpacing(8)
-        form.addWidget(self._section_label("calendar", "Detalhes da consulta"))
-
-        details = QHBoxLayout()
-        details.setSpacing(18)
-
-        self.appointment_date_input = QDateEdit(QDateTime.currentDateTime().date())
-        self.appointment_date_input.setCalendarPopup(True)
-        self.appointment_date_input.setDisplayFormat("dd/MM/yyyy")
-        self.appointment_date_input.setButtonSymbols(QDateEdit.UpDownArrows)
-        details.addWidget(
-            self._labeled("Data", self.appointment_date_input), 1
-        )
-
-        self.appointment_time_input = QTimeEdit(QDateTime.currentDateTime().time())
-        self.appointment_time_input.setDisplayFormat("HH:mm")
-        self.appointment_time_input.setButtonSymbols(QTimeEdit.UpDownArrows)
-        details.addWidget(
-            self._labeled("Hora", self.appointment_time_input), 1
-        )
-
-        form.addLayout(details)
-
-        self.appointment_specialty_input = QComboBox()
-        self.appointment_specialty_input.setEditable(True)
-        self.appointment_specialty_input.addItems(
-            ["Clínica Geral", "Cardiologia", "Pediatria",
-             "Medicina Dentária", "Outra"]
-        )
-        self.appointment_specialty_input.setItemIcon(0, qicon("stethoscope", "#1a9f70", 17))
-        form.addWidget(
-            self._labeled("Especialidade", self.appointment_specialty_input)
-        )
-
-        actions = QHBoxLayout()
-        actions.setSpacing(14)
-
-        schedule = QPushButton("Agendar consulta")
-        schedule.setIcon(qicon("calendar", "#ffffff", 18))
-        schedule.setObjectName("successButton")
-        schedule.clicked.connect(self.schedule_appointment)
-
-        clear = QPushButton("Limpar")
-        clear.setIcon(qicon("trash", "#35516b", 18))
-        clear.setObjectName("secondaryButton")
-        clear.clicked.connect(self.clear_appointment_form)
-
-        actions.addWidget(schedule)
-        actions.addWidget(clear)
-        actions.addStretch()
-        form.addLayout(actions)
-
-        layout.addWidget(card, 0, Qt.AlignLeft)
-        layout.addStretch()
-        return page
-
-    def _register_page(self):
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(30, 24, 30, 30)
-        layout.setSpacing(16)
-
-        layout.addWidget(self._target_page_header(
-            "user-plus",
-            "Registar paciente",
-            "Adicione um novo paciente ao sistema."
-        ))
-
-        card = QFrame()
-        card.setObjectName("modernCard")
-        card.setMaximumWidth(570)
-        form = QVBoxLayout(card)
-        form.setContentsMargins(26, 22, 26, 24)
-        form.setSpacing(11)
-
-        form.addWidget(self._section_label("user", "Dados pessoais"))
-
-        self.full_name_input = self._field("Nome completo do paciente")
-        self.full_name_input.addAction(qicon("user", "#1a9f70", 17), QLineEdit.LeadingPosition)
-        form.addWidget(
-            self._labeled("Nome completo", self.full_name_input)
-        )
-
-        self.birth_date_input = self._field("Ex.: 2000-05-20")
-        self.birth_date_input.addAction(qicon("calendar", "#1a9f70", 17), QLineEdit.LeadingPosition)
-        form.addWidget(
-            self._labeled("Data de nascimento", self.birth_date_input)
-        )
-
-        self.gender_input = QComboBox()
-        self.gender_input.setIconSize(QSize(17, 17))
-        self.gender_input.addItems(
-            ["Seleccione o género", "Masculino", "Feminino", "Outro"]
-        )
-        self.gender_input.setItemIcon(0, qicon("gender", "#1a9f70", 17))
-        form.addWidget(
-            self._labeled("Género", self.gender_input)
-        )
-
-        self.phone_input = self._field("Contacto telefónico")
-        self.phone_input.addAction(qicon("phone", "#1a9f70", 17), QLineEdit.LeadingPosition)
-        form.addWidget(self._labeled("Telefone", self.phone_input))
-
-        form.addSpacing(8)
-        form.addWidget(self._section_label("map-pin", "Endereço"))
-
-        self.address_input = self._field("Ex.: Av. Eduardo Mondlane, Nº 123")
-        self.address_input.addAction(qicon("map-pin", "#1a9f70", 17), QLineEdit.LeadingPosition)
-        form.addWidget(self._labeled("Morada", self.address_input))
-
-        address_row = QHBoxLayout()
-        address_row.setSpacing(18)
-
-        self.neighborhood_input = self._field("Ex.: Sommerschield")
-        address_row.addWidget(
-            self._labeled("Bairro", self.neighborhood_input), 1
-        )
-
-        self.city_input = self._field("Ex.: Maputo")
-        address_row.addWidget(
-            self._labeled("Cidade", self.city_input), 1
-        )
-
-        form.addLayout(address_row)
-
-        actions = QHBoxLayout()
-        actions.setSpacing(14)
-
-        register = QPushButton("Registar paciente")
-        register.setIcon(qicon("user-plus", "#ffffff", 18))
-        register.setObjectName("successButton")
-        register.clicked.connect(self.register_patient)
-
-        clear = QPushButton("Limpar")
-        clear.setIcon(qicon("trash", "#35516b", 18))
-        clear.setObjectName("secondaryButton")
-        clear.clicked.connect(self.clear_form)
-
-        actions.addWidget(register)
-        actions.addWidget(clear)
-        actions.addStretch()
-        form.addLayout(actions)
-
-        layout.addWidget(card, 0, Qt.AlignLeft)
-        layout.addStretch()
-        return page
-
-    def _patients_page(self):
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(30, 24, 30, 30)
-        layout.setSpacing(16)
-        layout.addWidget(self._page_header(
-            "users", "Pacientes",
-            "Consulte os pacientes registados e adicione-os à fila."
-        ))
-
-        card = QFrame()
-        card.setObjectName("modernCard")
-        lay = QVBoxLayout(card)
-        lay.setContentsMargins(22, 20, 22, 22)
-
-        actions = QHBoxLayout()
-        title = QLabel("Pacientes registados")
-        title.setObjectName("cardTitle")
-        actions.addWidget(title)
-        actions.addStretch()
-        queue = QPushButton("Adicionar à fila")
-        queue.setObjectName("successButton")
-        queue.clicked.connect(self.add_selected_patient_to_queue)
-        refresh = QPushButton("Actualizar")
-        refresh.setObjectName("secondaryButton")
-        refresh.clicked.connect(self.load_patients)
-        actions.addWidget(queue)
-        actions.addWidget(refresh)
-        lay.addLayout(actions)
-
-        self.patients_table = self._table(
-            ["ID", "Nome completo", "Nascimento", "Género", "Telefone"]
-        )
-        lay.addWidget(self.patients_table)
-        layout.addWidget(card, 1)
-        return page
-
-    def _appointments_page(self):
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(30, 24, 30, 30)
-        layout.setSpacing(16)
-        layout.addWidget(self._page_header(
-            "calendar", "Consultas",
-            "Consulte e actualize as consultas agendadas."
-        ))
-
-        card = QFrame()
-        card.setObjectName("modernCard")
-        lay = QVBoxLayout(card)
-        lay.setContentsMargins(22, 20, 22, 22)
-
-        actions = QHBoxLayout()
-        title = QLabel("Consultas agendadas")
-        title.setObjectName("cardTitle")
-        actions.addWidget(title)
-        actions.addStretch()
-        refresh = QPushButton("Actualizar")
-        refresh.setObjectName("secondaryButton")
-        refresh.clicked.connect(self.load_appointments)
-        actions.addWidget(refresh)
-        lay.addLayout(actions)
-
-        self.appointments_table = self._table(
-            ["ID", "Paciente", "Médico", "Data e hora", "Especialidade"]
-        )
-        lay.addWidget(self.appointments_table)
-        layout.addWidget(card, 1)
-        return page
-
-    # ------------------------------------------------------------------
-    # Small UI helpers
-    # ------------------------------------------------------------------
-    def _section_label(self, icon, text):
+    def _section(self, icon_name, text):
         w = QWidget()
         l = QHBoxLayout(w)
-        l.setContentsMargins(0, 3, 0, 3)
-        l.setSpacing(8)
+        l.setContentsMargins(0, 0, 0, 0)
+        l.setSpacing(10)
         i = QLabel()
         i.setObjectName("sectionIcon")
-        i.setPixmap(pixmap(icon, "#0ca466", 17))
+        i.setPixmap(pixmap(icon_name, "#0c9a5e", 18))
+        i.setFixedSize(32, 32)
+        i.setAlignment(Qt.AlignCenter)
         t = QLabel(text)
         t.setObjectName("formSection")
         l.addWidget(i)
@@ -598,22 +524,101 @@ class ReceptionDashboard(QWidget):
         l.addStretch()
         return w
 
-    def _field(self, placeholder):
+    def _divider(self):
+        line = QFrame()
+        line.setObjectName("formDivider")
+        line.setFixedHeight(1)
+        return line
+
+    def _section_header(self, lay, icon_name, text, first=False):
+        """Título de secção + linha separadora, sempre com o mesmo ritmo vertical."""
+        if not first:
+            lay.addSpacing(12)
+            lay.addWidget(self._divider())
+            lay.addSpacing(12)
+        lay.addWidget(self._section(icon_name, text))
+        if first:
+            lay.addSpacing(8)
+            lay.addWidget(self._divider())
+            lay.addSpacing(10)
+        else:
+            lay.addSpacing(10)
+
+    # ------------------------------------------------------------------
+    # Helpers de campos
+    # ------------------------------------------------------------------
+    def _field(self, placeholder, icon=None):
         e = QLineEdit()
         e.setPlaceholderText(placeholder)
-        e.setMinimumHeight(42)
+        e.setFixedHeight(FIELD_H)
+        e.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        if icon:
+            e.addAction(qicon(icon, "#5b7a90", 18), QLineEdit.LeadingPosition)
         return e
 
-    def _labeled(self, label, widget):
+    def _combo(self, icon=None, editable=False):
+        c = QComboBox()
+        c.setEditable(editable)
+        c.setFixedHeight(FIELD_H)
+        c.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._guard(c)
+        if icon:
+            c.setProperty("leftIcon", True)
+            _IconOverlay(c, icon, "#0c9a5e", side="left")
+        return c
+
+    def _guard(self, widget):
+        widget.setFocusPolicy(Qt.StrongFocus)
+        widget.installEventFilter(self._wheel_guard)
+
+    def _label(self, text):
+        l = QLabel(text)
+        l.setObjectName("fieldLabel")
+        return l
+
+    def _form_row(self, label, widget, label_w):
+        """Etiqueta à esquerda (largura fixa) + campo — colunas sempre alinhadas."""
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(COL_GAP)
+        lab = self._label(label)
+        lab.setFixedSize(label_w, FIELD_H)
+        row.addWidget(lab)
+        row.addWidget(widget, 1)
+        return row
+
+    def _stack(self, label, widget):
+        """Etiqueta por cima do campo."""
         w = QWidget()
         l = QVBoxLayout(w)
         l.setContentsMargins(0, 0, 0, 0)
         l.setSpacing(5)
-        t = QLabel(label)
-        t.setObjectName("fieldLabel")
-        l.addWidget(t)
+        l.addWidget(self._label(label))
         l.addWidget(widget)
         return w
+
+    def _actions(self, primary_text, primary_icon, primary_slot, clear_slot):
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(12)
+        primary = QPushButton("  " + primary_text)
+        primary.setObjectName("successButton")
+        primary.setIcon(qicon(primary_icon, "#ffffff", 18))
+        primary.setMinimumWidth(200)
+        primary.setFixedHeight(44)
+        primary.setCursor(Qt.PointingHandCursor)
+        primary.clicked.connect(primary_slot)
+        clear = QPushButton("  Limpar")
+        clear.setObjectName("secondaryButton")
+        clear.setIcon(qicon("trash", "#496276", 18))
+        clear.setMinimumWidth(130)
+        clear.setFixedHeight(44)
+        clear.setCursor(Qt.PointingHandCursor)
+        clear.clicked.connect(clear_slot)
+        row.addWidget(primary)
+        row.addWidget(clear)
+        row.addStretch(1)
+        return row
 
     def _table(self, headers):
         table = QTableWidget()
@@ -627,13 +632,267 @@ class ReceptionDashboard(QWidget):
         table.setMinimumHeight(260)
         return table
 
+    # ------------------------------------------------------------------
+    # Páginas
+    # ------------------------------------------------------------------
+    def _home_page(self):
+        scroll, col = self._scaffold()
+        col.addWidget(self._page_header("users", "Área da Recepção", "Gestão de pacientes e atendimento hospitalar", back=False, art="users"))
+        grid = QHBoxLayout()
+        grid.setSpacing(20)
+        grid.addWidget(self._action_card("calendar", "Agendar consulta", "Marque uma consulta para um paciente já cadastrado.", "Agendar consulta", 1, "successButton"), 1)
+        grid.addWidget(self._action_card("user-plus", "Registar paciente", "Adicione um novo paciente ao sistema.", "Registar paciente", 2, "blueButton"), 1)
+        col.addLayout(grid)
+        stats = QHBoxLayout()
+        stats.setSpacing(20)
+        self.home_patient_stat = self._stat_card("users", "Pacientes", "0")
+        self.home_appointment_stat = self._stat_card("calendar", "Consultas", "0")
+        stats.addWidget(self.home_patient_stat, 1)
+        stats.addWidget(self.home_appointment_stat, 1)
+        col.addLayout(stats)
+        col.addStretch(1)
+        return scroll
+
+    def _action_card(self, icon_name, title, desc, button_text, page_index, button_style):
+        card, lay = self._card((26, 24, 26, 24))
+        card.setMinimumHeight(215)
+        lay.setSpacing(10)
+        ic = QLabel()
+        ic.setObjectName("cardIcon")
+        ic.setPixmap(pixmap(icon_name, "#07945b", 25))
+        ic.setAlignment(Qt.AlignCenter)
+        ic.setFixedSize(54, 54)
+        lay.addWidget(ic, alignment=Qt.AlignLeft)
+        t = QLabel(title)
+        t.setObjectName("cardTitle")
+        d = QLabel(desc)
+        d.setObjectName("cardDescription")
+        d.setWordWrap(True)
+        lay.addWidget(t)
+        lay.addWidget(d)
+        lay.addStretch()
+        b = QPushButton("  " + button_text)
+        b.setObjectName(button_style)
+        b.setCursor(Qt.PointingHandCursor)
+        b.setIcon(qicon("calendar" if page_index == 1 else "user-plus", "#ffffff", 18))
+        b.clicked.connect(lambda: self.show_page(page_index))
+        b.setFixedHeight(46)
+        lay.addWidget(b)
+        return card
+
+    def _stat_card(self, icon_name, title, value):
+        card = QFrame()
+        card.setObjectName("statCard")
+        card.setFixedHeight(84)
+        lay = QHBoxLayout(card)
+        lay.setContentsMargins(20, 0, 20, 0)
+        lay.setSpacing(14)
+        ic = QLabel()
+        ic.setObjectName("statIcon")
+        ic.setPixmap(pixmap(icon_name, "#0aa365", 21))
+        ic.setAlignment(Qt.AlignCenter)
+        ic.setFixedSize(46, 46)
+        lay.addWidget(ic)
+        texts = QVBoxLayout()
+        texts.setSpacing(0)
+        texts.addStretch(1)
+        v = QLabel(value)
+        v.setObjectName("statValue")
+        l = QLabel(title)
+        l.setObjectName("statLabel")
+        texts.addWidget(v)
+        texts.addWidget(l)
+        texts.addStretch(1)
+        lay.addLayout(texts)
+        lay.addStretch()
+        card.value_label = v  # referência directa (evita mexer no ícone por engano)
+        return card
+
+    def _appointment_page(self):
+        scroll, col = self._scaffold()
+        col.addWidget(self._page_header("calendar", "Agendar consulta", "Marque uma consulta para um paciente já cadastrado no sistema.", art="calendar"))
+
+        card, lay = self._card()
+        self._section_header(lay, "user", "Dados do paciente", first=True)
+
+        lay.addWidget(self._label("ID do paciente"))
+        lay.addSpacing(5)
+        self.appointment_patient_id_input = self._field("Ex.: 1202")
+        self.appointment_patient_id_input.setObjectName("appointmentPatientId")
+        search = self.appointment_patient_id_input.addAction(qicon("search", "#466277", 18), QLineEdit.TrailingPosition)
+        search.setToolTip("Pesquisar paciente")
+        search.triggered.connect(self.find_appointment_patient)
+        self.appointment_patient_id_input.returnPressed.connect(self.find_appointment_patient)
+        id_row = QHBoxLayout()
+        id_row.setContentsMargins(0, 0, 0, 0)
+        id_row.setSpacing(0)
+        id_row.addSpacing(LABEL_W_SHORT + COL_GAP)
+        id_row.addWidget(self.appointment_patient_id_input, 1)
+        lay.addLayout(id_row)
+        lay.addSpacing(ROW_GAP)
+
+        self.appointment_patient_name_input = self._field("Nome do paciente")
+        self.appointment_patient_name_input.setObjectName("appointmentPatientName")
+        self.appointment_patient_name_input.setReadOnly(True)
+        lay.addLayout(self._form_row("Nome", self.appointment_patient_name_input, LABEL_W_SHORT))
+        lay.addSpacing(ROW_GAP)
+
+        self.appointment_doctor_input = self._combo()
+        self.appointment_doctor_input.addItems(["Seleccione o médico", "Dr. Carlos Silva", "Dra. Joana Paulo"])
+        lay.addLayout(self._form_row("Médico", self.appointment_doctor_input, LABEL_W_SHORT))
+
+        self._section_header(lay, "calendar", "Detalhes da consulta")
+
+        self.appointment_date_input = QDateEdit(QDateTime.currentDateTime().date())
+        self.appointment_date_input.setCalendarPopup(True)
+        self.appointment_date_input.setDisplayFormat("dd/MM/yyyy")
+        self.appointment_date_input.setFixedHeight(FIELD_H)
+        self.appointment_date_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._guard(self.appointment_date_input)
+        self.appointment_time_input = QTimeEdit(QDateTime.currentDateTime().time())
+        self.appointment_time_input.setDisplayFormat("HH:mm")
+        self.appointment_time_input.setButtonSymbols(QTimeEdit.NoButtons)
+        self.appointment_time_input.setFixedHeight(FIELD_H)
+        self.appointment_time_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._guard(self.appointment_time_input)
+        _IconOverlay(self.appointment_time_input, "clock", "#4a6a80", side="right")
+
+        details = QHBoxLayout()
+        details.setContentsMargins(0, 0, 0, 0)
+        details.setSpacing(COL_GAP + 4)
+        details.addWidget(self._stack("Data", self.appointment_date_input), 1)
+        details.addWidget(self._stack("Hora", self.appointment_time_input), 1)
+        lay.addLayout(details)
+        lay.addSpacing(ROW_GAP)
+
+        self.appointment_specialty_input = self._combo("stethoscope", editable=True)
+        self.appointment_specialty_input.addItems(["Clínica Geral", "Cardiologia", "Pediatria", "Medicina Dentária", "Outra"])
+        self.appointment_specialty_input.setCurrentIndex(-1)
+        self.appointment_specialty_input.lineEdit().setPlaceholderText("Ex.: Clínica Geral")
+        lay.addWidget(self._stack("Especialidade", self.appointment_specialty_input))
+
+        lay.addSpacing(16)
+        lay.addLayout(self._actions("Agendar consulta", "calendar", self.schedule_appointment, self.clear_appointment_form))
+
+        col.addWidget(card)
+        col.addStretch(1)
+        return scroll
+
+    def _register_page(self):
+        scroll, col = self._scaffold()
+        col.addWidget(self._page_header("user-plus", "Registar paciente", "Adicione um novo paciente ao sistema.", art="user-plus"))
+
+        card, lay = self._card()
+        self._section_header(lay, "user", "Dados pessoais", first=True)
+
+        self.full_name_input = self._field("Nome completo do paciente")
+        lay.addLayout(self._form_row("Nome completo", self.full_name_input, LABEL_W_LONG))
+        lay.addSpacing(ROW_GAP)
+
+        self.birth_date_input = self._field("Ex.: 2000-05-20", icon="calendar")
+        lay.addLayout(self._form_row("Data de nascimento", self.birth_date_input, LABEL_W_LONG))
+        lay.addSpacing(ROW_GAP)
+
+        self.gender_input = self._combo("gender")
+        self.gender_input.addItems(["Seleccione o género", "Masculino", "Feminino", "Outro"])
+        lay.addLayout(self._form_row("Género", self.gender_input, LABEL_W_LONG))
+        lay.addSpacing(ROW_GAP)
+
+        self.phone_input = self._field("Contacto telefónico", icon="phone")
+        lay.addLayout(self._form_row("Telefone", self.phone_input, LABEL_W_LONG))
+
+        self._section_header(lay, "map-pin", "Endereço")
+
+        self.address_input = self._field("Ex.: Av. Eduardo Mondlane, Nº 123")
+        lay.addLayout(self._form_row("Morada", self.address_input, LABEL_W_LONG))
+        lay.addSpacing(ROW_GAP)
+
+        self.neighborhood_input = self._field("Ex.: Sommerschield")
+        self.city_input = self._field("Ex.: Maputo")
+        city_label = self._label("Cidade")
+        city_label.setFixedSize(58, FIELD_H)
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(COL_GAP)
+        bairro_label = self._label("Bairro")
+        bairro_label.setFixedSize(LABEL_W_LONG, FIELD_H)
+        row.addWidget(bairro_label)
+        row.addWidget(self.neighborhood_input, 1)
+        row.addSpacing(4)
+        row.addWidget(city_label)
+        row.addWidget(self.city_input, 1)
+        lay.addLayout(row)
+
+        lay.addSpacing(18)
+        lay.addLayout(self._actions("Registar paciente", "user-plus", self.register_patient, self.clear_form))
+
+        col.addWidget(card)
+        col.addStretch(1)
+        return scroll
+
+    def _patients_page(self):
+        scroll, col = self._scaffold(TABLE_MAX_W)
+        col.addWidget(self._page_header("users", "Pacientes", "Consulte os pacientes registados e adicione-os à fila.", art="users"))
+        card, lay = self._card((22, 20, 22, 22))
+        lay.setSpacing(14)
+        actions = QHBoxLayout()
+        title = QLabel("Pacientes registados")
+        title.setObjectName("cardTitle")
+        actions.addWidget(title)
+        actions.addStretch()
+        queue = QPushButton("Adicionar à fila")
+        queue.setObjectName("successButton")
+        queue.setFixedHeight(44)
+        queue.clicked.connect(self.add_selected_patient_to_queue)
+        refresh = QPushButton("Actualizar")
+        refresh.setObjectName("secondaryButton")
+        refresh.setFixedHeight(44)
+        refresh.clicked.connect(self.load_patients)
+        actions.addWidget(queue)
+        actions.addWidget(refresh)
+        lay.addLayout(actions)
+        self.patients_table = self._table(["ID", "Nome completo", "Nascimento", "Género", "Telefone"])
+        lay.addWidget(self.patients_table)
+        col.addWidget(card, 1)
+        return scroll
+
+    def _appointments_page(self):
+        scroll, col = self._scaffold(TABLE_MAX_W)
+        col.addWidget(self._page_header("calendar", "Consultas", "Consulte e actualize as consultas agendadas.", art="calendar"))
+        card, lay = self._card((22, 20, 22, 22))
+        lay.setSpacing(14)
+        actions = QHBoxLayout()
+        title = QLabel("Consultas agendadas")
+        title.setObjectName("cardTitle")
+        actions.addWidget(title)
+        actions.addStretch()
+        refresh = QPushButton("Actualizar")
+        refresh.setObjectName("secondaryButton")
+        refresh.setFixedHeight(44)
+        refresh.clicked.connect(self.load_appointments)
+        actions.addWidget(refresh)
+        lay.addLayout(actions)
+        self.appointments_table = self._table(["ID", "Paciente", "Médico", "Data e hora", "Especialidade"])
+        lay.addWidget(self.appointments_table)
+        col.addWidget(card, 1)
+        return scroll
+
+    def _placeholder_page(self, icon_name, title, subtitle):
+        scroll, col = self._scaffold()
+        col.addWidget(self._page_header(icon_name, title, subtitle))
+        card, lay = self._card((28, 40, 28, 40))
+        msg = QLabel("Esta secção estará disponível em breve.")
+        msg.setObjectName("cardDescription")
+        msg.setAlignment(Qt.AlignCenter)
+        lay.addWidget(msg)
+        col.addWidget(card)
+        col.addStretch(1)
+        return scroll
+
     def show_page(self, index):
-        # Home is 0; nav indices 1..4 map to the stacked pages.
         self.content_stack.setCurrentIndex(index)
         for i, button in self.nav_buttons:
-            button.setProperty("active", i == index)
-            button.style().unpolish(button)
-            button.style().polish(button)
+            button.set_active(i == index)
 
     # ------------------------------------------------------------------
     # Existing CORBA actions
@@ -734,7 +993,7 @@ class ReceptionDashboard(QWidget):
                         self.appointments_table.setItem(row, column, QTableWidgetItem(str(value)))
                 self.appointments_table.resizeColumnsToContents()
             if hasattr(self, "home_appointment_stat"):
-                self.home_appointment_stat.findChildren(QLabel)[0].setText(str(len(appointments)))
+                self.home_appointment_stat.value_label.setText(str(len(appointments)))
         except Exception as error:
             self.show_error(f"Não foi possível carregar as consultas:\n{error}")
 
@@ -765,14 +1024,15 @@ class ReceptionDashboard(QWidget):
                         self.patients_table.setItem(row, column, QTableWidgetItem(str(value)))
                 self.patients_table.resizeColumnsToContents()
             if hasattr(self, "home_patient_stat"):
-                self.home_patient_stat.findChildren(QLabel)[0].setText(str(len(patients)))
+                self.home_patient_stat.value_label.setText(str(len(patients)))
         except Exception as error:
             self.show_error(f"Não foi possível carregar os pacientes:\n{error}")
 
     def clear_appointment_form(self):
         self.appointment_patient_id_input.clear()
         self.appointment_doctor_input.setCurrentIndex(0)
-        self.appointment_specialty_input.setCurrentIndex(0)
+        self.appointment_specialty_input.setCurrentIndex(-1)
+        self.appointment_specialty_input.clearEditText()
         self.appointment_patient_name_input.clear()
         self.appointment_date_input.setDate(QDateTime.currentDateTime().date())
         self.appointment_time_input.setTime(QDateTime.currentDateTime().time())

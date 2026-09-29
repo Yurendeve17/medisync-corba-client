@@ -123,3 +123,4 @@ class LoginPage(QWidget):
     def show_error(self, message: str):
         self.error_label.setText(message)
         self.error_label.show()
+        self.error_label.show()
