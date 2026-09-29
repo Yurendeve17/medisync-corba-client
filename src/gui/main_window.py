@@ -75,8 +75,6 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
-        self.login_page.password_input.clear()
-        self.login_page.username_input.clear()
-        self.login_page.error_label.hide()
+        self.login_page.reset_form()
         self.stack.setCurrentWidget(self.login_page)
         self.login_page.username_input.setFocus()
