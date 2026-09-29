@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QDateTime, QEvent, QObject, QPoint, QPointF, QRect
+from PySide6.QtCore import Qt, QDateTime, QEvent, QObject, QPoint, QPointF, QRect, QTimer
 from PySide6.QtGui import QColor, QFont, QKeySequence, QPainter, QPainterPath, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
@@ -8,11 +8,13 @@ from PySide6.QtWidgets import (
 )
 
 from .icons import pixmap, qicon, illustration
+from .notifications import NotificationPopup, Toast, notification_text
 
 # ----------------------------------------------------------------------
 # Medidas do layout (um único sítio para manter tudo harmónico)
 # ----------------------------------------------------------------------
 SIDEBAR_W = 232
+NOTIF_POLL_MS = 8000     # de quanto em quanto tempo a recepção verifica novas chamadas
 TOPBAR_H = 72
 PAGE_MAX_W = 1000        # largura máxima do conteúdo (cabeçalho e cartão alinhados)
 TABLE_MAX_W = 1200
@@ -169,8 +171,13 @@ class ReceptionDashboard(QWidget):
         self.content_stack = QStackedWidget()
         self.nav_buttons = []
         self._wheel_guard = _WheelGuard(self)
+        self._notifications = []
+        self._notif_last_id = 0
+        self._notif_primed = False
+        self._notif_error_shown = False
         self._build_shell()
         self._build_pages()
+        self._build_notifications()
         QShortcut(QKeySequence("Ctrl+K"), self, activated=self.search_input.setFocus)
         self.show_page(0)
         self.load_patients()
@@ -304,11 +311,14 @@ class ReceptionDashboard(QWidget):
         self.bell_button.setObjectName("topIconButton")
         self.bell_button.setIcon(qicon("bell", "#466277", 20))
         self.bell_button.setFixedSize(40, 40)
-        self.notification_badge = QLabel("3", self.bell_button)
+        self.bell_button.setCursor(Qt.PointingHandCursor)
+        self.bell_button.setToolTip("Notificações")
+        self.notification_badge = QLabel("0", self.bell_button)
         self.notification_badge.setObjectName("notifBadge")
         self.notification_badge.setAlignment(Qt.AlignCenter)
         self.notification_badge.setGeometry(22, 3, 16, 16)
         self.notification_badge.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.notification_badge.hide()
         h.addWidget(self.bell_button)
 
         theme_button = QToolButton()
@@ -378,8 +388,74 @@ class ReceptionDashboard(QWidget):
         self.profile_menu.exec(pos)
 
     def set_notification_count(self, count):
-        self.notification_badge.setText(str(count))
+        self.notification_badge.setText("9+" if count > 9 else str(count))
         self.notification_badge.setVisible(count > 0)
+
+    # ------------------------------------------------------------------
+    # Notificações (chamadas de pacientes feitas pelos médicos)
+    # ------------------------------------------------------------------
+    def _build_notifications(self):
+        self.notification_popup = NotificationPopup(self)
+        self.notification_popup.read_requested.connect(self._mark_notification_read)
+        self.notification_popup.read_all_requested.connect(self._mark_all_notifications_read)
+        self.toast = Toast(self, top_offset=TOPBAR_H + 16)
+        self.bell_button.clicked.connect(self.show_notifications)
+
+        self._notif_timer = QTimer(self)
+        self._notif_timer.timeout.connect(self.refresh_notifications)
+        self._notif_timer.start(NOTIF_POLL_MS)
+
+    def show_notifications(self):
+        self.refresh_notifications()
+        self.notification_popup.set_notifications(self._notifications)
+        self.notification_popup.show_below(self.bell_button)
+
+    def refresh_notifications(self):
+        # sem sessão activa (p. ex. depois do logout) não consulta o servidor
+        if self.current_user is None or getattr(self.app, "current_user", None) is None:
+            return
+
+        try:
+            items = self.app.list_notifications()
+        except Exception as error:
+            # o servidor pode ainda não ter o NotificationService: avisa só uma vez
+            if not self._notif_error_shown:
+                print("ERRO AO CARREGAR NOTIFICAÇÕES:", type(error).__name__, repr(error), flush=True)
+                self._notif_error_shown = True
+            return
+        self._notif_error_shown = False
+
+        items = sorted(items, key=lambda n: n.id, reverse=True)
+        self._notifications = items
+        self.set_notification_count(sum(1 for n in items if not n.isRead))
+
+        # aviso apenas para chamadas novas (no 1.º carregamento após o login não avisa)
+        if self._notif_primed:
+            fresh = [n for n in items if n.id > self._notif_last_id and not n.isRead]
+            if len(fresh) == 1:
+                self.toast.show_message(notification_text(fresh[0]))
+            elif fresh:
+                self.toast.show_message(f"{len(fresh)} novas chamadas de pacientes")
+
+        self._notif_last_id = max([self._notif_last_id] + [n.id for n in items])
+        self._notif_primed = True
+
+        if self.notification_popup.isVisible():
+            self.notification_popup.set_notifications(items)
+
+    def _mark_notification_read(self, notification_id):
+        try:
+            self.app.mark_notification_read(notification_id)
+        except Exception as error:
+            self.show_error(f"Não foi possível marcar a notificação como lida:\n{error}")
+        self.refresh_notifications()
+
+    def _mark_all_notifications_read(self):
+        try:
+            self.app.mark_all_notifications_read()
+        except Exception as error:
+            self.show_error(f"Não foi possível marcar as notificações como lidas:\n{error}")
+        self.refresh_notifications()
 
     def set_current_user(self, user):
         self.current_user = user
@@ -391,6 +467,11 @@ class ReceptionDashboard(QWidget):
         self.user_role_label.setText(role_label)
         self.avatar_label.setPixmap(_avatar(_initials(full_name)))
         self.profile_button.setToolTip(f"{full_name} ({username})")
+
+        # nova sessão: recomeça o controlo de chamadas já vistas
+        self._notif_primed = False
+        self._notif_last_id = 0
+        self.refresh_notifications()
 
     def show_profile(self):
         user = self.current_user or getattr(self.app, "current_user", None)

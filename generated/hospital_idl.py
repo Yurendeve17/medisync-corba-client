@@ -368,6 +368,98 @@ omniORB.registerSkeleton(AppointmentService._NP_RepositoryId, AppointmentService
 del AppointmentService
 __name__ = "Hospital"
 
+# struct Notification
+_0_Hospital.Notification = omniORB.newEmptyClass()
+class Notification (omniORB.StructBase):
+    _NP_RepositoryId = "IDL:Hospital/Notification:1.0"
+
+    def __init__(self, id, appointmentId, patientId, patientName, doctor, createdAt, isRead):
+        self.id = id
+        self.appointmentId = appointmentId
+        self.patientId = patientId
+        self.patientName = patientName
+        self.doctor = doctor
+        self.createdAt = createdAt
+        self.isRead = isRead
+
+_0_Hospital.Notification = Notification
+_0_Hospital._d_Notification  = (omniORB.tcInternal.tv_struct, Notification, Notification._NP_RepositoryId, "Notification", "id", omniORB.tcInternal.tv_long, "appointmentId", omniORB.tcInternal.tv_long, "patientId", omniORB.tcInternal.tv_long, "patientName", (omniORB.tcInternal.tv_string,0), "doctor", (omniORB.tcInternal.tv_string,0), "createdAt", (omniORB.tcInternal.tv_string,0), "isRead", omniORB.tcInternal.tv_boolean)
+_0_Hospital._tc_Notification = omniORB.tcInternal.createTypeCode(_0_Hospital._d_Notification)
+omniORB.registerType(Notification._NP_RepositoryId, _0_Hospital._d_Notification, _0_Hospital._tc_Notification)
+del Notification
+
+# typedef ... NotificationList
+class NotificationList:
+    _NP_RepositoryId = "IDL:Hospital/NotificationList:1.0"
+    def __init__(self, *args, **kw):
+        raise RuntimeError("Cannot construct objects of this type.")
+_0_Hospital.NotificationList = NotificationList
+_0_Hospital._d_NotificationList  = (omniORB.tcInternal.tv_sequence, omniORB.typeMapping["IDL:Hospital/Notification:1.0"], 0)
+_0_Hospital._ad_NotificationList = (omniORB.tcInternal.tv_alias, NotificationList._NP_RepositoryId, "NotificationList", (omniORB.tcInternal.tv_sequence, omniORB.typeMapping["IDL:Hospital/Notification:1.0"], 0))
+_0_Hospital._tc_NotificationList = omniORB.tcInternal.createTypeCode(_0_Hospital._ad_NotificationList)
+omniORB.registerType(NotificationList._NP_RepositoryId, _0_Hospital._ad_NotificationList, _0_Hospital._tc_NotificationList)
+del NotificationList
+
+# interface NotificationService
+_0_Hospital._d_NotificationService = (omniORB.tcInternal.tv_objref, "IDL:Hospital/NotificationService:1.0", "NotificationService")
+omniORB.typeMapping["IDL:Hospital/NotificationService:1.0"] = _0_Hospital._d_NotificationService
+_0_Hospital.NotificationService = omniORB.newEmptyClass()
+class NotificationService :
+    _NP_RepositoryId = _0_Hospital._d_NotificationService[1]
+
+    def __init__(self, *args, **kw):
+        raise RuntimeError("Cannot construct objects of this type.")
+
+    _nil = CORBA.Object._nil
+
+
+_0_Hospital.NotificationService = NotificationService
+_0_Hospital._tc_NotificationService = omniORB.tcInternal.createTypeCode(_0_Hospital._d_NotificationService)
+omniORB.registerType(NotificationService._NP_RepositoryId, _0_Hospital._d_NotificationService, _0_Hospital._tc_NotificationService)
+
+# NotificationService operations and attributes
+NotificationService._d_callPatient = ((omniORB.tcInternal.tv_long, omniORB.tcInternal.tv_long, (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:Hospital/Notification:1.0"], ), None)
+NotificationService._d_listNotifications = ((), (omniORB.typeMapping["IDL:Hospital/NotificationList:1.0"], ), None)
+NotificationService._d_markAsRead = ((omniORB.tcInternal.tv_long, ), (), None)
+NotificationService._d_markAllAsRead = ((), (), None)
+
+# NotificationService object reference
+class _objref_NotificationService (CORBA.Object):
+    _NP_RepositoryId = NotificationService._NP_RepositoryId
+
+    def __init__(self, obj):
+        CORBA.Object.__init__(self, obj)
+
+    def callPatient(self, *args):
+        return self._obj.invoke("callPatient", _0_Hospital.NotificationService._d_callPatient, args)
+
+    def listNotifications(self, *args):
+        return self._obj.invoke("listNotifications", _0_Hospital.NotificationService._d_listNotifications, args)
+
+    def markAsRead(self, *args):
+        return self._obj.invoke("markAsRead", _0_Hospital.NotificationService._d_markAsRead, args)
+
+    def markAllAsRead(self, *args):
+        return self._obj.invoke("markAllAsRead", _0_Hospital.NotificationService._d_markAllAsRead, args)
+
+omniORB.registerObjref(NotificationService._NP_RepositoryId, _objref_NotificationService)
+_0_Hospital._objref_NotificationService = _objref_NotificationService
+del NotificationService, _objref_NotificationService
+
+# NotificationService skeleton
+__name__ = "Hospital__POA"
+class NotificationService (PortableServer.Servant):
+    _NP_RepositoryId = _0_Hospital.NotificationService._NP_RepositoryId
+
+
+    _omni_op_d = {"callPatient": _0_Hospital.NotificationService._d_callPatient, "listNotifications": _0_Hospital.NotificationService._d_listNotifications, "markAsRead": _0_Hospital.NotificationService._d_markAsRead, "markAllAsRead": _0_Hospital.NotificationService._d_markAllAsRead}
+
+NotificationService._omni_skeleton = NotificationService
+_0_Hospital__POA.NotificationService = NotificationService
+omniORB.registerSkeleton(NotificationService._NP_RepositoryId, NotificationService)
+del NotificationService
+__name__ = "Hospital"
+
 #
 # End of module "Hospital"
 #

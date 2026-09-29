@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     libxcb-xinerama0 \
     libfontconfig1 \
     libdbus-1-3 \
+    tzdata \
     xvfb \
     x11vnc \
     novnc \

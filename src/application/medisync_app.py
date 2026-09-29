@@ -1,3 +1,5 @@
+import re
+import unicodedata
 from typing import Any
 
 from corba_client import CorbaClient
@@ -5,6 +7,15 @@ from services.auth_service import AuthService
 from services.patient_service import PatientService
 from services.queue_service import QueueService
 from services.appointment_service import AppointmentService
+from services.notification_service import NotificationService
+
+def normalize_doctor_name(name: str) -> str:
+    """'Dr. Carlos Silva' e 'Carlos Silva' passam a ser o mesmo nome."""
+    text = unicodedata.normalize("NFKD", name or "")
+    text = "".join(c for c in text if not unicodedata.combining(c)).lower()
+    text = re.sub(r"\b(dr|dra|doutor|doutora)\b\.?", " ", text)
+    return " ".join(text.split())
+
 
 class MediSyncApp:
     def __init__(self):
@@ -23,6 +34,10 @@ class MediSyncApp:
         )
 
         self.appointment_service = AppointmentService(
+            self.corba_client
+        )
+
+        self.notification_service = NotificationService(
             self.corba_client
         )
 
@@ -114,3 +129,39 @@ class MediSyncApp:
         return self.appointment_service.find_appointment_by_id(
             appointment_id
         )
+
+    def list_appointments_for_doctor(self, doctor_name: str) -> list[Any]:
+        """Consultas agendadas para o médico indicado (ignora Dr./Dra.)."""
+        wanted = normalize_doctor_name(doctor_name)
+
+        if not wanted:
+            return []
+
+        return [
+            appointment
+            for appointment in self.list_appointments()
+            if normalize_doctor_name(appointment.doctor) == wanted
+        ]
+
+    # Notificações
+
+    def call_patient(
+        self,
+        appointment: Any,
+        patient_name: str,
+    ) -> Any:
+        return self.notification_service.call_patient(
+            appointment.id,
+            appointment.patientId,
+            patient_name,
+            appointment.doctor,
+        )
+
+    def list_notifications(self) -> list[Any]:
+        return self.notification_service.list_notifications()
+
+    def mark_notification_read(self, notification_id: int) -> None:
+        self.notification_service.mark_as_read(notification_id)
+
+    def mark_all_notifications_read(self) -> None:
+        self.notification_service.mark_all_as_read()

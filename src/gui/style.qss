@@ -639,3 +639,98 @@ QPushButton#loginSecondary {
 }
 
 QPushButton#loginSecondary:hover { background: #e3f6ef; }
+
+
+/* ==========================================================
+   Painel do médico e notificações
+   ========================================================== */
+QWidget#doctorDashboard { background: #f4f8fb; }
+
+QFrame#nextPatientBox {
+    background: #f2faf6;
+    border: 1px solid #d5eee2;
+    border-radius: 12px;
+}
+
+QLabel#callStatus {
+    color: #0b7a52;
+    background: #e6f7ef;
+    border: 1px solid #bfe8d3;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+QPushButton#tableActionButton {
+    background: #0f9f64;
+    color: #ffffff;
+    border: none;
+    border-radius: 9px;
+    padding: 0 14px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+QPushButton#tableActionButton:hover { background: #0b8853; }
+QPushButton#tableActionButton:disabled { background: #9fd6bf; }
+
+QFrame#notifPopup {
+    background: #ffffff;
+    border: 1px solid #d9e5ec;
+    border-radius: 12px;
+}
+
+QScrollArea#notifScroll, QWidget#notifBody { background: transparent; border: none; }
+
+QLabel#notifTitle {
+    color: #0f2547;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+QPushButton#notifItem {
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    text-align: left;
+}
+
+QPushButton#notifItem:hover { background: #f0f7f5; }
+QPushButton#notifItem[unread="true"] { background: #eefaf4; }
+QPushButton#notifItem[unread="true"]:hover { background: #e2f6ec; }
+
+QLabel#notifIcon {
+    background: #e1f8ed;
+    border-radius: 20px;
+}
+
+QLabel#notifMessage {
+    color: #12304a;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+}
+
+QLabel#notifTime {
+    color: #6b8194;
+    font-size: 11px;
+    background: transparent;
+}
+
+QLabel#notifDot {
+    background: #0f9f64;
+    border-radius: 4px;
+}
+
+QFrame#toast {
+    background: #0b8f68;
+    border-radius: 12px;
+}
+
+QLabel#toastText {
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    background: transparent;
+}

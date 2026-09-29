@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QApplication
 
 from application.medisync_app import MediSyncApp
 from gui.main_window import MainWindow
+from gui.theme import load_stylesheet
 
 
 def main():
@@ -17,8 +18,7 @@ def main():
         / "style.qss"
     )
 
-    with open(style_path, "r", encoding="utf-8") as file:
-        app.setStyleSheet(file.read())
+    app.setStyleSheet(load_stylesheet(style_path))
 
     medisync_app = MediSyncApp()
 

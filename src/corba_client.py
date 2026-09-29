@@ -96,5 +96,11 @@ class CorbaClient:
             Hospital.AppointmentService,
         )
 
+    def get_notification_service(self):
+        return self._resolve_service(
+            "NotificationService",
+            Hospital.NotificationService,
+        )
+
     def close(self):
         self.orb.destroy()
