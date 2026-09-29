@@ -30,6 +30,8 @@ RUN pip install --no-cache-dir --timeout 300 --retries 10 -r requirements.txt
 
 COPY . .
 
-RUN chmod +x start.sh
+RUN sed -i 's/\r$//' start.sh && \
+    sed -i '1s/^\xEF\xBB\xBF//' start.sh && \
+    chmod +x start.sh
 
 CMD ["./start.sh"]
