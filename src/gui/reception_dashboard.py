@@ -1,4 +1,8 @@
-from PySide6.QtCore import Qt, QDateTime
+from PySide6.QtCore import Qt, QDateTime, QSize
+from PySide6.QtGui import QIcon
+
+from .icons import pixmap, qicon
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QMessageBox,
@@ -41,23 +45,32 @@ class ReceptionDashboard(QWidget):
         side.setContentsMargins(14, 18, 14, 18)
         side.setSpacing(7)
 
-        logo = QLabel("♥  MediSync")
+        logo = QLabel()
+        logo.setPixmap(pixmap("heart-pulse", "#ffffff", 30))
+        logo_text = QLabel("MediSync")
+        logo_text.setObjectName("logoText")
         logo.setObjectName("logo")
         logo_sub = QLabel("Sistema Hospitalar")
         logo_sub.setObjectName("logoSubtitle")
-        side.addWidget(logo)
+        logo_row = QHBoxLayout()
+        logo_row.setContentsMargins(4, 0, 0, 0)
+        logo_row.setSpacing(8)
+        logo_row.addWidget(logo)
+        logo_row.addWidget(logo_text)
+        logo_row.addStretch()
+        side.addLayout(logo_row)
         side.addWidget(logo_sub)
         side.addSpacing(22)
 
-        side.addWidget(self._nav("⌂", "Início", 0))
-        side.addWidget(self._nav("♙", "Recepção   ⌃", 0, parent=True))
-        side.addWidget(self._nav("▣", "Agendar consulta", 1))
-        side.addWidget(self._nav("♙", "Registar paciente", 2))
-        side.addWidget(self._nav("▤", "Pacientes", 3))
-        side.addWidget(self._nav("□", "Consultas", 4))
-        side.addWidget(self._nav("♧", "Médicos", 5))
-        side.addWidget(self._nav("▥", "Relatórios", 6))
-        side.addWidget(self._nav("⚙", "Configurações", 7))
+        side.addWidget(self._nav("home", "Início", 0))
+        side.addWidget(self._nav("users", "Recepção", 0, parent=True))
+        side.addWidget(self._nav("calendar", "Agendar consulta", 1))
+        side.addWidget(self._nav("user-plus", "Registar paciente", 2))
+        side.addWidget(self._nav("users", "Pacientes", 3))
+        side.addWidget(self._nav("clipboard", "Consultas", 4))
+        side.addWidget(self._nav("stethoscope", "Médicos", 5))
+        side.addWidget(self._nav("bar-chart", "Relatórios", 6))
+        side.addWidget(self._nav("settings", "Configurações", 7))
         side.addStretch()
 
         footer_icon = QLabel("〰")
@@ -85,17 +98,24 @@ class ReceptionDashboard(QWidget):
             "Pesquisar paciente, consulta, médico..."
         )
         self.search_input.setClearButtonEnabled(True)
+        self.search_input.addAction(qicon("search", "#58738b", 18), QLineEdit.LeadingPosition)
         self.search_input.setMaximumWidth(380)
         h.addWidget(self.search_input)
         h.addStretch()
 
-        bell = QLabel("♧  ³")
+        bell = QLabel()
+        bell.setPixmap(pixmap("bell", "#49657d", 19))
         bell.setObjectName("topIcon")
         h.addWidget(bell)
-        calendar = QLabel("▣")
+        count = QLabel("3")
+        count.setObjectName("topCount")
+        h.addWidget(count)
+        calendar = QLabel()
+        calendar.setPixmap(pixmap("grid", "#49657d", 18))
         calendar.setObjectName("topIcon")
         h.addWidget(calendar)
-        theme = QLabel("☼")
+        theme = QLabel()
+        theme.setPixmap(pixmap("sun", "#49657d", 19))
         theme.setObjectName("topIcon")
         h.addWidget(theme)
 
@@ -113,10 +133,13 @@ class ReceptionDashboard(QWidget):
         shell.addLayout(right, 1)
 
     def _nav(self, icon, text, index, parent=False):
-        button = QPushButton(f"{icon}   {text}")
+        button = QPushButton(text)
         button.setObjectName("navButton")
+        button.setIcon(qicon(icon, "#ffffff" if parent else "#c8dcda", 18))
+        button.setIconSize(QSize(18, 18))
         if parent:
             button.setObjectName("navSection")
+            button.setIcon(qicon(icon, "#ffffff", 18))
         else:
             button.clicked.connect(lambda _, i=index: self.show_page(i))
             self.nav_buttons.append((index, button))
@@ -150,9 +173,10 @@ class ReceptionDashboard(QWidget):
         row.setContentsMargins(4, 0, 4, 0)
         row.setSpacing(18)
 
-        icon_box = QLabel(icon)
+        icon_box = QLabel()
         icon_box.setObjectName("targetHeroIcon")
         icon_box.setAlignment(Qt.AlignCenter)
+        icon_box.setPixmap(pixmap(icon, "#ffffff", 42))
         icon_box.setFixedSize(72, 72)
 
         texts = QVBoxLayout()
@@ -178,9 +202,10 @@ class ReceptionDashboard(QWidget):
         layout = QHBoxLayout(wrapper)
         layout.setContentsMargins(30, 26, 30, 18)
 
-        icon_box = QLabel(icon)
+        icon_box = QLabel()
         icon_box.setObjectName("heroIcon")
         icon_box.setAlignment(Qt.AlignCenter)
+        icon_box.setPixmap(pixmap(icon, "#ffffff", 34))
         icon_box.setFixedSize(62, 62)
 
         texts = QVBoxLayout()
@@ -205,7 +230,7 @@ class ReceptionDashboard(QWidget):
         layout.setSpacing(20)
 
         layout.addWidget(self._page_header(
-            "♙", "Área da Recepção",
+            "user", "Área da Recepção",
             "Gestão de pacientes e atendimento hospitalar"
         ))
 
@@ -213,12 +238,12 @@ class ReceptionDashboard(QWidget):
         grid.setSpacing(18)
 
         grid.addWidget(self._action_card(
-            "▣", "Agendar consulta",
+            "calendar", "Agendar consulta",
             "Marque uma consulta para um paciente já cadastrado.",
             "Agendar consulta", 1, "successButton"
         ))
         grid.addWidget(self._action_card(
-            "♙+", "Registar paciente",
+            "user-plus", "Registar paciente",
             "Adicione um novo paciente ao sistema.",
             "Registar paciente", 2, "blueButton"
         ))
@@ -226,8 +251,8 @@ class ReceptionDashboard(QWidget):
 
         stats = QHBoxLayout()
         stats.setSpacing(18)
-        self.home_patient_stat = self._stat_card("♙", "Pacientes", "0")
-        self.home_appointment_stat = self._stat_card("▣", "Consultas", "0")
+        self.home_patient_stat = self._stat_card("users", "Pacientes", "0")
+        self.home_appointment_stat = self._stat_card("calendar", "Consultas", "0")
         stats.addWidget(self.home_patient_stat)
         stats.addWidget(self.home_appointment_stat)
         layout.addLayout(stats)
@@ -243,9 +268,10 @@ class ReceptionDashboard(QWidget):
         lay.setContentsMargins(24, 22, 24, 22)
         lay.setSpacing(12)
 
-        ic = QLabel(icon)
+        ic = QLabel()
         ic.setObjectName("cardIcon")
         ic.setAlignment(Qt.AlignCenter)
+        ic.setPixmap(pixmap(icon, "#07945b", 26))
         ic.setFixedSize(52, 52)
         lay.addWidget(ic, alignment=Qt.AlignLeft)
 
@@ -270,8 +296,9 @@ class ReceptionDashboard(QWidget):
         card.setObjectName("statCard")
         lay = QHBoxLayout(card)
         lay.setContentsMargins(20, 15, 20, 15)
-        ic = QLabel(icon)
+        ic = QLabel()
         ic.setObjectName("statIcon")
+        ic.setPixmap(pixmap(icon, "#0aa365", 22))
         lay.addWidget(ic)
         texts = QVBoxLayout()
         v = QLabel(value)
@@ -291,7 +318,7 @@ class ReceptionDashboard(QWidget):
         layout.setSpacing(16)
 
         layout.addWidget(self._target_page_header(
-            "▣",
+            "calendar-clock",
             "Agendar consulta",
             "Marque uma consulta para um paciente\njá cadastrado no sistema."
         ))
@@ -303,7 +330,7 @@ class ReceptionDashboard(QWidget):
         form.setContentsMargins(26, 22, 26, 24)
         form.setSpacing(11)
 
-        form.addWidget(self._section_label("♙", "Dados do paciente"))
+        form.addWidget(self._section_label("user", "Dados do paciente"))
 
         # ID + pesquisa
         id_row = QHBoxLayout()
@@ -314,7 +341,8 @@ class ReceptionDashboard(QWidget):
 
         search = QToolButton()
         search.setObjectName("fieldSearchButton")
-        search.setText("⌕")
+        search.setIcon(qicon("search", "#45657b", 19))
+        search.setText("")
         search.setToolTip("Pesquisar paciente")
         search.clicked.connect(self.find_appointment_patient)
         id_row.addWidget(search)
@@ -325,6 +353,7 @@ class ReceptionDashboard(QWidget):
 
         self.appointment_patient_name_input = self._field("Nome do paciente")
         self.appointment_patient_name_input.setObjectName("appointmentPatientName")
+        self.appointment_patient_name_input.addAction(qicon("user", "#1a9f70", 17), QLineEdit.LeadingPosition)
         self.appointment_patient_name_input.setReadOnly(True)
         form.addWidget(self._labeled("Nome", self.appointment_patient_name_input))
 
@@ -335,7 +364,7 @@ class ReceptionDashboard(QWidget):
         form.addWidget(self._labeled("Médico", self.appointment_doctor_input))
 
         form.addSpacing(8)
-        form.addWidget(self._section_label("▣", "Detalhes da consulta"))
+        form.addWidget(self._section_label("calendar", "Detalhes da consulta"))
 
         details = QHBoxLayout()
         details.setSpacing(18)
@@ -343,12 +372,14 @@ class ReceptionDashboard(QWidget):
         self.appointment_date_input = QDateEdit(QDateTime.currentDateTime().date())
         self.appointment_date_input.setCalendarPopup(True)
         self.appointment_date_input.setDisplayFormat("dd/MM/yyyy")
+        self.appointment_date_input.setButtonSymbols(QDateEdit.UpDownArrows)
         details.addWidget(
             self._labeled("Data", self.appointment_date_input), 1
         )
 
         self.appointment_time_input = QTimeEdit(QDateTime.currentDateTime().time())
         self.appointment_time_input.setDisplayFormat("HH:mm")
+        self.appointment_time_input.setButtonSymbols(QTimeEdit.UpDownArrows)
         details.addWidget(
             self._labeled("Hora", self.appointment_time_input), 1
         )
@@ -361,6 +392,7 @@ class ReceptionDashboard(QWidget):
             ["Clínica Geral", "Cardiologia", "Pediatria",
              "Medicina Dentária", "Outra"]
         )
+        self.appointment_specialty_input.setItemIcon(0, qicon("stethoscope", "#1a9f70", 17))
         form.addWidget(
             self._labeled("Especialidade", self.appointment_specialty_input)
         )
@@ -368,11 +400,13 @@ class ReceptionDashboard(QWidget):
         actions = QHBoxLayout()
         actions.setSpacing(14)
 
-        schedule = QPushButton("▣   Agendar consulta")
+        schedule = QPushButton("Agendar consulta")
+        schedule.setIcon(qicon("calendar", "#ffffff", 18))
         schedule.setObjectName("successButton")
         schedule.clicked.connect(self.schedule_appointment)
 
-        clear = QPushButton("♜   Limpar")
+        clear = QPushButton("Limpar")
+        clear.setIcon(qicon("trash", "#35516b", 18))
         clear.setObjectName("secondaryButton")
         clear.clicked.connect(self.clear_appointment_form)
 
@@ -392,7 +426,7 @@ class ReceptionDashboard(QWidget):
         layout.setSpacing(16)
 
         layout.addWidget(self._target_page_header(
-            "♙+",
+            "user-plus",
             "Registar paciente",
             "Adicione um novo paciente ao sistema."
         ))
@@ -404,33 +438,39 @@ class ReceptionDashboard(QWidget):
         form.setContentsMargins(26, 22, 26, 24)
         form.setSpacing(11)
 
-        form.addWidget(self._section_label("♙", "Dados pessoais"))
+        form.addWidget(self._section_label("user", "Dados pessoais"))
 
         self.full_name_input = self._field("Nome completo do paciente")
+        self.full_name_input.addAction(qicon("user", "#1a9f70", 17), QLineEdit.LeadingPosition)
         form.addWidget(
             self._labeled("Nome completo", self.full_name_input)
         )
 
         self.birth_date_input = self._field("Ex.: 2000-05-20")
+        self.birth_date_input.addAction(qicon("calendar", "#1a9f70", 17), QLineEdit.LeadingPosition)
         form.addWidget(
             self._labeled("Data de nascimento", self.birth_date_input)
         )
 
         self.gender_input = QComboBox()
+        self.gender_input.setIconSize(QSize(17, 17))
         self.gender_input.addItems(
             ["Seleccione o género", "Masculino", "Feminino", "Outro"]
         )
+        self.gender_input.setItemIcon(0, qicon("gender", "#1a9f70", 17))
         form.addWidget(
             self._labeled("Género", self.gender_input)
         )
 
         self.phone_input = self._field("Contacto telefónico")
+        self.phone_input.addAction(qicon("phone", "#1a9f70", 17), QLineEdit.LeadingPosition)
         form.addWidget(self._labeled("Telefone", self.phone_input))
 
         form.addSpacing(8)
-        form.addWidget(self._section_label("⌖", "Endereço"))
+        form.addWidget(self._section_label("map-pin", "Endereço"))
 
         self.address_input = self._field("Ex.: Av. Eduardo Mondlane, Nº 123")
+        self.address_input.addAction(qicon("map-pin", "#1a9f70", 17), QLineEdit.LeadingPosition)
         form.addWidget(self._labeled("Morada", self.address_input))
 
         address_row = QHBoxLayout()
@@ -451,11 +491,13 @@ class ReceptionDashboard(QWidget):
         actions = QHBoxLayout()
         actions.setSpacing(14)
 
-        register = QPushButton("♙+   Registar paciente")
+        register = QPushButton("Registar paciente")
+        register.setIcon(qicon("user-plus", "#ffffff", 18))
         register.setObjectName("successButton")
         register.clicked.connect(self.register_patient)
 
-        clear = QPushButton("♜   Limpar")
+        clear = QPushButton("Limpar")
+        clear.setIcon(qicon("trash", "#35516b", 18))
         clear.setObjectName("secondaryButton")
         clear.clicked.connect(self.clear_form)
 
@@ -474,7 +516,7 @@ class ReceptionDashboard(QWidget):
         layout.setContentsMargins(30, 24, 30, 30)
         layout.setSpacing(16)
         layout.addWidget(self._page_header(
-            "♙", "Pacientes",
+            "users", "Pacientes",
             "Consulte os pacientes registados e adicione-os à fila."
         ))
 
@@ -511,7 +553,7 @@ class ReceptionDashboard(QWidget):
         layout.setContentsMargins(30, 24, 30, 30)
         layout.setSpacing(16)
         layout.addWidget(self._page_header(
-            "▣", "Consultas",
+            "calendar", "Consultas",
             "Consulte e actualize as consultas agendadas."
         ))
 
@@ -546,8 +588,9 @@ class ReceptionDashboard(QWidget):
         l = QHBoxLayout(w)
         l.setContentsMargins(0, 3, 0, 3)
         l.setSpacing(8)
-        i = QLabel(icon)
+        i = QLabel()
         i.setObjectName("sectionIcon")
+        i.setPixmap(pixmap(icon, "#0ca466", 17))
         t = QLabel(text)
         t.setObjectName("formSection")
         l.addWidget(i)

@@ -459,3 +459,28 @@ QLabel#targetPageSubtitle {
     font-size: 14px;
     line-height: 1.25;
 }
+
+/* Ícones SVG do layout de referência */
+QLabel#logoText {
+    color: #ffffff;
+    font-size: 25px;
+    font-weight: 800;
+}
+
+QPushButton#navButton, QPushButton#navSection {
+    qproperty-iconSize: 18px 18px;
+    padding-left: 10px;
+    spacing: 10px;
+}
+
+QLabel#topCount {
+    color: #49657d;
+    font-size: 12px;
+    font-weight: 700;
+    margin-left: -7px;
+    margin-right: 8px;
+}
+
+QPushButton#successButton, QPushButton#secondaryButton {
+    qproperty-iconSize: 18px 18px;
+}
