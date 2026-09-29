@@ -205,7 +205,7 @@ QLabel#helperText {
     padding: 10px;
 }
 
-QLineEdit, QComboBox, QDateTimeEdit {
+QLineEdit, QComboBox, QDateTimeEdit, QDateEdit, QTimeEdit {
     background: #fbfdfe;
     border: 1px solid #d6e4eb;
     border-radius: 10px;
@@ -215,7 +215,7 @@ QLineEdit, QComboBox, QDateTimeEdit {
     font-size: 13px;
 }
 
-QLineEdit:focus, QComboBox:focus, QDateTimeEdit:focus {
+QLineEdit:focus, QComboBox:focus, QDateTimeEdit:focus, QDateEdit:focus, QTimeEdit:focus {
     border: 2px solid #24b77a;
     background: white;
 }
@@ -387,4 +387,75 @@ QLabel#errorLabel {
 QStatusBar {
     background: #eef4f5;
     color: #526b80;
+}
+
+
+/* Campos específicos do formulário moderno */
+QLineEdit#appointmentPatientName {
+    background: #f1f5f7;
+    color: #6f8496;
+}
+
+QToolButton#fieldSearchButton {
+    background: transparent;
+    color: #45657b;
+    border: 1px solid #d6e4eb;
+    border-radius: 10px;
+    min-width: 42px;
+    min-height: 42px;
+    font-size: 22px;
+    font-weight: 500;
+}
+
+QToolButton#fieldSearchButton:hover {
+    background: #eef8f4;
+    color: #0daf69;
+    border-color: #bfe3d4;
+}
+
+QDateEdit, QTimeEdit {
+    padding-right: 28px;
+}
+
+QDateEdit::drop-down,
+QTimeEdit::drop-down {
+    width: 28px;
+    border: none;
+}
+
+
+/* Páginas de formulário - reprodução visual do layout de referência */
+QPushButton#backLink {
+    background: transparent;
+    color: #526d86;
+    border: none;
+    min-height: 24px;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 600;
+}
+QPushButton#backLink:hover {
+    color: #0b9d63;
+}
+QFrame#targetHero {
+    background: transparent;
+    border: none;
+    min-height: 78px;
+}
+QLabel#targetHeroIcon {
+    background: #18b86e;
+    color: white;
+    border-radius: 18px;
+    font-size: 31px;
+    font-weight: 700;
+}
+QLabel#targetPageTitle {
+    color: #10254a;
+    font-size: 28px;
+    font-weight: 800;
+}
+QLabel#targetPageSubtitle {
+    color: #6a8198;
+    font-size: 14px;
+    line-height: 1.25;
 }

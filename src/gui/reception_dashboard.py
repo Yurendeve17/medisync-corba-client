@@ -2,7 +2,7 @@ from PySide6.QtCore import Qt, QDateTime
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QMessageBox,
-    QStackedWidget, QDateTimeEdit, QSizePolicy
+    QStackedWidget, QDateEdit, QTimeEdit, QSizePolicy, QToolButton
 )
 
 
@@ -35,10 +35,10 @@ class ReceptionDashboard(QWidget):
 
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(238)
+        sidebar.setFixedWidth(210)
 
         side = QVBoxLayout(sidebar)
-        side.setContentsMargins(16, 20, 16, 18)
+        side.setContentsMargins(14, 18, 14, 18)
         side.setSpacing(7)
 
         logo = QLabel("♥  MediSync")
@@ -50,7 +50,7 @@ class ReceptionDashboard(QWidget):
         side.addSpacing(22)
 
         side.addWidget(self._nav("⌂", "Início", 0))
-        side.addWidget(self._nav("♙", "Recepção", 0, parent=True))
+        side.addWidget(self._nav("♙", "Recepção   ⌃", 0, parent=True))
         side.addWidget(self._nav("▣", "Agendar consulta", 1))
         side.addWidget(self._nav("♙", "Registar paciente", 2))
         side.addWidget(self._nav("▤", "Pacientes", 3))
@@ -85,7 +85,7 @@ class ReceptionDashboard(QWidget):
             "Pesquisar paciente, consulta, médico..."
         )
         self.search_input.setClearButtonEnabled(True)
-        self.search_input.setMaximumWidth(620)
+        self.search_input.setMaximumWidth(380)
         h.addWidget(self.search_input)
         h.addStretch()
 
@@ -107,11 +107,6 @@ class ReceptionDashboard(QWidget):
         user = QLabel("  Yuren Deve\n  Recepção")
         user.setObjectName("userProfile")
         h.addWidget(user)
-
-        back = QPushButton("←  Voltar")
-        back.setObjectName("backButton")
-        back.clicked.connect(lambda: self.stack.setCurrentIndex(0))
-        h.addWidget(back)
 
         right.addWidget(header)
         right.addWidget(self.content_stack, 1)
@@ -136,6 +131,46 @@ class ReceptionDashboard(QWidget):
         self.content_stack.addWidget(self._register_page())
         self.content_stack.addWidget(self._patients_page())
         self.content_stack.addWidget(self._appointments_page())
+
+    def _target_page_header(self, icon, title, subtitle):
+        wrapper = QWidget()
+        outer = QVBoxLayout(wrapper)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(16)
+
+        back = QPushButton("←   Voltar para o início")
+        back.setObjectName("backLink")
+        back.setCursor(Qt.PointingHandCursor)
+        back.clicked.connect(lambda: self.show_page(0))
+        outer.addWidget(back, 0, Qt.AlignLeft)
+
+        hero = QFrame()
+        hero.setObjectName("targetHero")
+        row = QHBoxLayout(hero)
+        row.setContentsMargins(4, 0, 4, 0)
+        row.setSpacing(18)
+
+        icon_box = QLabel(icon)
+        icon_box.setObjectName("targetHeroIcon")
+        icon_box.setAlignment(Qt.AlignCenter)
+        icon_box.setFixedSize(72, 72)
+
+        texts = QVBoxLayout()
+        texts.setContentsMargins(0, 0, 0, 0)
+        texts.setSpacing(4)
+        title_label = QLabel(title)
+        title_label.setObjectName("targetPageTitle")
+        subtitle_label = QLabel(subtitle)
+        subtitle_label.setObjectName("targetPageSubtitle")
+        subtitle_label.setWordWrap(True)
+        texts.addWidget(title_label)
+        texts.addWidget(subtitle_label)
+
+        row.addWidget(icon_box)
+        row.addLayout(texts)
+        row.addStretch()
+        outer.addWidget(hero)
+        return wrapper
 
     def _page_header(self, icon, title, subtitle):
         wrapper = QFrame()
@@ -254,61 +289,99 @@ class ReceptionDashboard(QWidget):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(30, 24, 30, 30)
         layout.setSpacing(16)
-        layout.addWidget(self._page_header(
-            "▣", "Agendar consulta",
-            "Marque uma consulta para um paciente já cadastrado no sistema."
+
+        layout.addWidget(self._target_page_header(
+            "▣",
+            "Agendar consulta",
+            "Marque uma consulta para um paciente\njá cadastrado no sistema."
         ))
 
         card = QFrame()
         card.setObjectName("modernCard")
+        card.setMaximumWidth(570)
         form = QVBoxLayout(card)
         form.setContentsMargins(26, 22, 26, 24)
-        form.setSpacing(12)
+        form.setSpacing(11)
 
         form.addWidget(self._section_label("♙", "Dados do paciente"))
 
-        self.appointment_patient_id_input = self._field(
-            "ID do paciente", "Ex.: 1202"
-        )
+        # ID + pesquisa
+        id_row = QHBoxLayout()
+        id_row.setSpacing(8)
+        self.appointment_patient_id_input = self._field("Ex.: 1202")
         self.appointment_patient_id_input.setObjectName("appointmentPatientId")
-        form.addWidget(self._labeled("ID do paciente", self.appointment_patient_id_input))
+        id_row.addWidget(self.appointment_patient_id_input, 1)
+
+        search = QToolButton()
+        search.setObjectName("fieldSearchButton")
+        search.setText("⌕")
+        search.setToolTip("Pesquisar paciente")
+        search.clicked.connect(self.find_appointment_patient)
+        id_row.addWidget(search)
+
+        id_wrap = QWidget()
+        id_wrap.setLayout(id_row)
+        form.addWidget(self._labeled("ID do paciente", id_wrap))
+
+        self.appointment_patient_name_input = self._field("Nome do paciente")
+        self.appointment_patient_name_input.setObjectName("appointmentPatientName")
+        self.appointment_patient_name_input.setReadOnly(True)
+        form.addWidget(self._labeled("Nome", self.appointment_patient_name_input))
 
         self.appointment_doctor_input = QComboBox()
         self.appointment_doctor_input.addItems(
-            ["Seleccione o médico", "Yuren", "Médico de serviço"]
+            ["Seleccione o médico", "Dr. Carlos Silva", "Dra. Joana Paulo"]
         )
         form.addWidget(self._labeled("Médico", self.appointment_doctor_input))
 
         form.addSpacing(8)
         form.addWidget(self._section_label("▣", "Detalhes da consulta"))
 
-        date_row = QHBoxLayout()
-        self.appointment_date_input = QDateTimeEdit(QDateTime.currentDateTime())
+        details = QHBoxLayout()
+        details.setSpacing(18)
+
+        self.appointment_date_input = QDateEdit(QDateTime.currentDateTime().date())
         self.appointment_date_input.setCalendarPopup(True)
-        self.appointment_date_input.setDisplayFormat("dd/MM/yyyy HH:mm")
-        date_row.addWidget(self._labeled("Data e hora", self.appointment_date_input), 1)
+        self.appointment_date_input.setDisplayFormat("dd/MM/yyyy")
+        details.addWidget(
+            self._labeled("Data", self.appointment_date_input), 1
+        )
+
+        self.appointment_time_input = QTimeEdit(QDateTime.currentDateTime().time())
+        self.appointment_time_input.setDisplayFormat("HH:mm")
+        details.addWidget(
+            self._labeled("Hora", self.appointment_time_input), 1
+        )
+
+        form.addLayout(details)
 
         self.appointment_specialty_input = QComboBox()
         self.appointment_specialty_input.setEditable(True)
         self.appointment_specialty_input.addItems(
-            ["Clínica Geral", "Cardiologia", "Pediatria", "Medicina Dentária", "Outra"]
+            ["Clínica Geral", "Cardiologia", "Pediatria",
+             "Medicina Dentária", "Outra"]
         )
-        date_row.addWidget(self._labeled("Especialidade", self.appointment_specialty_input), 1)
-        form.addLayout(date_row)
+        form.addWidget(
+            self._labeled("Especialidade", self.appointment_specialty_input)
+        )
 
         actions = QHBoxLayout()
+        actions.setSpacing(14)
+
         schedule = QPushButton("▣   Agendar consulta")
         schedule.setObjectName("successButton")
         schedule.clicked.connect(self.schedule_appointment)
-        clear = QPushButton("Limpar")
+
+        clear = QPushButton("♜   Limpar")
         clear.setObjectName("secondaryButton")
         clear.clicked.connect(self.clear_appointment_form)
+
         actions.addWidget(schedule)
         actions.addWidget(clear)
         actions.addStretch()
         form.addLayout(actions)
 
-        layout.addWidget(card)
+        layout.addWidget(card, 0, Qt.AlignLeft)
         layout.addStretch()
         return page
 
@@ -317,60 +390,81 @@ class ReceptionDashboard(QWidget):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(30, 24, 30, 30)
         layout.setSpacing(16)
-        layout.addWidget(self._page_header(
-            "♙+", "Registar paciente",
+
+        layout.addWidget(self._target_page_header(
+            "♙+",
+            "Registar paciente",
             "Adicione um novo paciente ao sistema."
         ))
 
         card = QFrame()
         card.setObjectName("modernCard")
+        card.setMaximumWidth(570)
         form = QVBoxLayout(card)
         form.setContentsMargins(26, 22, 26, 24)
-        form.setSpacing(12)
+        form.setSpacing(11)
 
         form.addWidget(self._section_label("♙", "Dados pessoais"))
 
-        self.full_name_input = self._field(
-            "Nome completo do paciente"
+        self.full_name_input = self._field("Nome completo do paciente")
+        form.addWidget(
+            self._labeled("Nome completo", self.full_name_input)
         )
-        form.addWidget(self._labeled("Nome completo", self.full_name_input))
 
-        row = QHBoxLayout()
         self.birth_date_input = self._field("Ex.: 2000-05-20")
-        row.addWidget(self._labeled("Data de nascimento", self.birth_date_input), 1)
+        form.addWidget(
+            self._labeled("Data de nascimento", self.birth_date_input)
+        )
+
         self.gender_input = QComboBox()
         self.gender_input.addItems(
             ["Seleccione o género", "Masculino", "Feminino", "Outro"]
         )
-        row.addWidget(self._labeled("Género", self.gender_input), 1)
-        form.addLayout(row)
+        form.addWidget(
+            self._labeled("Género", self.gender_input)
+        )
 
         self.phone_input = self._field("Contacto telefónico")
         form.addWidget(self._labeled("Telefone", self.phone_input))
 
         form.addSpacing(8)
-        form.addWidget(self._section_label("⌖", "Contacto"))
+        form.addWidget(self._section_label("⌖", "Endereço"))
 
-        contact_note = QLabel(
-            "O contacto telefónico é utilizado para identificação e comunicação com o paciente."
+        self.address_input = self._field("Ex.: Av. Eduardo Mondlane, Nº 123")
+        form.addWidget(self._labeled("Morada", self.address_input))
+
+        address_row = QHBoxLayout()
+        address_row.setSpacing(18)
+
+        self.neighborhood_input = self._field("Ex.: Sommerschield")
+        address_row.addWidget(
+            self._labeled("Bairro", self.neighborhood_input), 1
         )
-        contact_note.setObjectName("helperText")
-        contact_note.setWordWrap(True)
-        form.addWidget(contact_note)
+
+        self.city_input = self._field("Ex.: Maputo")
+        address_row.addWidget(
+            self._labeled("Cidade", self.city_input), 1
+        )
+
+        form.addLayout(address_row)
 
         actions = QHBoxLayout()
+        actions.setSpacing(14)
+
         register = QPushButton("♙+   Registar paciente")
         register.setObjectName("successButton")
         register.clicked.connect(self.register_patient)
-        clear = QPushButton("Limpar")
+
+        clear = QPushButton("♜   Limpar")
         clear.setObjectName("secondaryButton")
         clear.clicked.connect(self.clear_form)
+
         actions.addWidget(register)
         actions.addWidget(clear)
         actions.addStretch()
         form.addLayout(actions)
 
-        layout.addWidget(card)
+        layout.addWidget(card, 0, Qt.AlignLeft)
         layout.addStretch()
         return page
 
@@ -501,6 +595,20 @@ class ReceptionDashboard(QWidget):
     # ------------------------------------------------------------------
     # Existing CORBA actions
     # ------------------------------------------------------------------
+    def find_appointment_patient(self):
+        patient_id_text = self.appointment_patient_id_input.text().strip()
+
+        if not patient_id_text or not patient_id_text.isdigit():
+            self.show_error("Introduza um ID de paciente válido.")
+            return
+
+        try:
+            patient = self.app.find_patient_by_id(int(patient_id_text))
+            self.appointment_patient_name_input.setText(patient.fullName)
+        except Exception as error:
+            self.appointment_patient_name_input.clear()
+            self.show_error(f"Não foi possível encontrar o paciente:\n{error}")
+
     def register_patient(self):
         full_name = self.full_name_input.text().strip()
         birth_date = self.birth_date_input.text().strip()
@@ -539,7 +647,8 @@ class ReceptionDashboard(QWidget):
         patient_id_text = self.appointment_patient_id_input.text().strip()
         doctor = self.appointment_doctor_input.currentText().strip()
         specialty = self.appointment_specialty_input.currentText().strip()
-        appointment_date = self.appointment_date_input.dateTime().toString("yyyy-MM-dd HH:mm")
+        appointment_date = (self.appointment_date_input.date().toString("yyyy-MM-dd") + " " +
+                            self.appointment_time_input.time().toString("HH:mm"))
 
         if not patient_id_text:
             self.show_error("Introduza o ID do paciente.")
@@ -621,13 +730,18 @@ class ReceptionDashboard(QWidget):
         self.appointment_patient_id_input.clear()
         self.appointment_doctor_input.setCurrentIndex(0)
         self.appointment_specialty_input.setCurrentIndex(0)
-        self.appointment_date_input.setDateTime(QDateTime.currentDateTime())
+        self.appointment_patient_name_input.clear()
+        self.appointment_date_input.setDate(QDateTime.currentDateTime().date())
+        self.appointment_time_input.setTime(QDateTime.currentDateTime().time())
 
     def clear_form(self):
         self.full_name_input.clear()
         self.birth_date_input.clear()
         self.gender_input.setCurrentIndex(0)
         self.phone_input.clear()
+        self.address_input.clear()
+        self.neighborhood_input.clear()
+        self.city_input.clear()
 
     def show_error(self, message):
         QMessageBox.critical(self, "Erro", message)

@@ -1,5 +1,4 @@
-```sh
-#!/bin/sh
+﻿#!/bin/sh
 
 set -e
 
@@ -30,7 +29,7 @@ sleep 2
 
 # Verificar se o X realmente iniciou
 if ! xdpyinfo -display :99 >/dev/null 2>&1; then
-    echo "ERRO: Xvfb não conseguiu iniciar no display :99"
+    echo "ERRO: Xvfb nÃ£o conseguiu iniciar no display :99"
     exit 1
 fi
 
@@ -71,4 +70,3 @@ echo "======================================"
 echo "A iniciar MediSync..."
 
 exec python src/main.py
-```
