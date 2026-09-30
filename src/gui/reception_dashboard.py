@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QDateTime, QEvent, QObject, QPoint, QPointF, QRect, QTimer
+﻿from PySide6.QtCore import Qt, QDateTime, QEvent, QObject, QPoint, QPointF, QRect, QTimer
 from PySide6.QtGui import QColor, QFont, QKeySequence, QPainter, QPainterPath, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 
 from .icons import pixmap, qicon, illustration
 from .notifications import NotificationPopup, Toast, notification_text
+from .time_picker import ClockTimeEdit
 
 # ----------------------------------------------------------------------
 # Medidas do layout (um único sítio para manter tudo harmónico)
@@ -830,9 +831,8 @@ class ReceptionDashboard(QWidget):
         self.appointment_date_input.setFixedHeight(FIELD_H)
         self.appointment_date_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._guard(self.appointment_date_input)
-        self.appointment_time_input = QTimeEdit(QDateTime.currentDateTime().time())
-        self.appointment_time_input.setDisplayFormat("HH:mm")
-        self.appointment_time_input.setButtonSymbols(QTimeEdit.NoButtons)
+        # Ao clicar no campo abre-se o relógio para escolher hora e minutos
+        self.appointment_time_input = ClockTimeEdit(QDateTime.currentDateTime().time())
         self.appointment_time_input.setFixedHeight(FIELD_H)
         self.appointment_time_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._guard(self.appointment_time_input)
