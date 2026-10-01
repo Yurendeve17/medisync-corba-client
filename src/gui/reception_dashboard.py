@@ -9,7 +9,6 @@ from PySide6.QtWidgets import (
 
 from .icons import pixmap, qicon, illustration
 from .notifications import NotificationPopup, Toast, notification_text
-from .time_picker import ClockTimeEdit
 
 # ----------------------------------------------------------------------
 # Medidas do layout (um único sítio para manter tudo harmónico)
@@ -831,8 +830,9 @@ class ReceptionDashboard(QWidget):
         self.appointment_date_input.setFixedHeight(FIELD_H)
         self.appointment_date_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._guard(self.appointment_date_input)
-        # Ao clicar no campo abre-se o relógio para escolher hora e minutos
-        self.appointment_time_input = ClockTimeEdit(QDateTime.currentDateTime().time())
+        self.appointment_time_input = QTimeEdit(QDateTime.currentDateTime().time())
+        self.appointment_time_input.setDisplayFormat("HH:mm")
+        self.appointment_time_input.setButtonSymbols(QTimeEdit.NoButtons)
         self.appointment_time_input.setFixedHeight(FIELD_H)
         self.appointment_time_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._guard(self.appointment_time_input)
@@ -953,7 +953,7 @@ class ReceptionDashboard(QWidget):
         refresh.clicked.connect(self.load_appointments)
         actions.addWidget(refresh)
         lay.addLayout(actions)
-        self.appointments_table = self._table(["ID", "Paciente", "Médico", "Data e hora", "Especialidade"])
+        self.appointments_table = self._table(["ID", "Paciente", "Médico", "Data e hora", "Especialidade", "Estado"])
         lay.addWidget(self.appointments_table)
         col.addWidget(card, 1)
         return scroll
@@ -1068,7 +1068,7 @@ class ReceptionDashboard(QWidget):
                     values = [
                         appointment.id, appointment.patientId,
                         appointment.doctor, appointment.appointmentDate,
-                        appointment.specialty
+                        appointment.specialty, getattr(appointment, "status", "AGENDADA")
                     ]
                     for column, value in enumerate(values):
                         self.appointments_table.setItem(row, column, QTableWidgetItem(str(value)))
@@ -1089,10 +1089,29 @@ class ReceptionDashboard(QWidget):
             return
         patient_id = int(item.text())
         try:
-            self.app.add_patient_to_queue(patient_id)
-            QMessageBox.information(self, "Sucesso", f"O paciente #{patient_id} foi adicionado à fila.")
+            appointments = [
+                a for a in self.app.list_appointments()
+                if a.patientId == patient_id
+                and getattr(a, "status", "AGENDADA") == "AGENDADA"
+            ]
+            appointments.sort(key=lambda a: a.appointmentDate)
+            if not appointments:
+                self.show_error(
+                    f"O paciente #{patient_id} não possui uma consulta AGENDADA disponível para entrar na fila."
+                )
+                return
+
+            appointment = appointments[0]
+            self.app.add_appointment_to_queue(appointment.id)
+            QMessageBox.information(
+                self,
+                "Sucesso",
+                f"A consulta #{appointment.id} do paciente #{patient_id} foi adicionada à fila.\n"
+                "O estado da consulta passou para AGUARDANDO.",
+            )
+            self.load_appointments()
         except Exception as error:
-            self.show_error(f"Não foi possível adicionar o paciente à fila:\n{error}")
+            self.show_error(f"Não foi possível adicionar a consulta à fila:\n{error}")
 
     def load_patients(self):
         try:

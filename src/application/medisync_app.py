@@ -94,6 +94,18 @@ class MediSyncApp:
     def add_patient_to_queue(self, patient_id: int) -> None:
         self.queue_service.add_to_queue(patient_id)
 
+    def add_appointment_to_queue(self, appointment_id: int) -> None:
+        self.queue_service.add_appointment_to_queue(appointment_id)
+
+    def list_queue(self) -> list[Any]:
+        return self.queue_service.list_queue()
+
+    def peek_next_queue_entry(self) -> Any:
+        return self.queue_service.peek_next_entry()
+
+    def get_next_queue_entry(self) -> Any:
+        return self.queue_service.get_next_entry()
+
     def peek_next_patient(self) -> int:
         return self.queue_service.peek_next_patient()
 
@@ -129,6 +141,9 @@ class MediSyncApp:
         return self.appointment_service.find_appointment_by_id(
             appointment_id
         )
+
+    def update_appointment_status(self, appointment_id: int, status: str) -> None:
+        self.appointment_service.update_status(appointment_id, status)
 
     def list_appointments_for_doctor(self, doctor_name: str) -> list[Any]:
         """Consultas agendadas para o médico indicado (ignora Dr./Dra.)."""

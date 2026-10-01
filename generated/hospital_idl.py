@@ -222,60 +222,78 @@ omniORB.registerSkeleton(PatientService._NP_RepositoryId, PatientService)
 del PatientService
 __name__ = "Hospital"
 
+# struct QueueEntry
+_0_Hospital.QueueEntry = omniORB.newEmptyClass()
+class QueueEntry (omniORB.StructBase):
+    _NP_RepositoryId = "IDL:Hospital/QueueEntry:1.0"
+
+    def __init__(self, id, appointmentId, patientId, patientName, doctor, addedAt, status):
+        self.id = id
+        self.appointmentId = appointmentId
+        self.patientId = patientId
+        self.patientName = patientName
+        self.doctor = doctor
+        self.addedAt = addedAt
+        self.status = status
+
+_0_Hospital.QueueEntry = QueueEntry
+_0_Hospital._d_QueueEntry = (omniORB.tcInternal.tv_struct, QueueEntry, QueueEntry._NP_RepositoryId, "QueueEntry", "id", omniORB.tcInternal.tv_long, "appointmentId", omniORB.tcInternal.tv_long, "patientId", omniORB.tcInternal.tv_long, "patientName", (omniORB.tcInternal.tv_string,0), "doctor", (omniORB.tcInternal.tv_string,0), "addedAt", (omniORB.tcInternal.tv_string,0), "status", (omniORB.tcInternal.tv_string,0))
+_0_Hospital._tc_QueueEntry = omniORB.tcInternal.createTypeCode(_0_Hospital._d_QueueEntry)
+omniORB.registerType(QueueEntry._NP_RepositoryId, _0_Hospital._d_QueueEntry, _0_Hospital._tc_QueueEntry)
+del QueueEntry
+
+# typedef ... QueueEntryList
+class QueueEntryList:
+    _NP_RepositoryId = "IDL:Hospital/QueueEntryList:1.0"
+    def __init__(self, *args, **kw):
+        raise RuntimeError("Cannot construct objects of this type.")
+_0_Hospital.QueueEntryList = QueueEntryList
+_0_Hospital._d_QueueEntryList = (omniORB.tcInternal.tv_sequence, omniORB.typeMapping["IDL:Hospital/QueueEntry:1.0"], 0)
+_0_Hospital._ad_QueueEntryList = (omniORB.tcInternal.tv_alias, QueueEntryList._NP_RepositoryId, "QueueEntryList", (omniORB.tcInternal.tv_sequence, omniORB.typeMapping["IDL:Hospital/QueueEntry:1.0"], 0))
+_0_Hospital._tc_QueueEntryList = omniORB.tcInternal.createTypeCode(_0_Hospital._ad_QueueEntryList)
+omniORB.registerType(QueueEntryList._NP_RepositoryId, _0_Hospital._ad_QueueEntryList, _0_Hospital._tc_QueueEntryList)
+del QueueEntryList
+
 # interface QueueService
 _0_Hospital._d_QueueService = (omniORB.tcInternal.tv_objref, "IDL:Hospital/QueueService:1.0", "QueueService")
 omniORB.typeMapping["IDL:Hospital/QueueService:1.0"] = _0_Hospital._d_QueueService
 _0_Hospital.QueueService = omniORB.newEmptyClass()
 class QueueService :
     _NP_RepositoryId = _0_Hospital._d_QueueService[1]
-
-    def __init__(self, *args, **kw):
-        raise RuntimeError("Cannot construct objects of this type.")
-
+    def __init__(self, *args, **kw): raise RuntimeError("Cannot construct objects of this type.")
     _nil = CORBA.Object._nil
-
-
 _0_Hospital.QueueService = QueueService
 _0_Hospital._tc_QueueService = omniORB.tcInternal.createTypeCode(_0_Hospital._d_QueueService)
 omniORB.registerType(QueueService._NP_RepositoryId, _0_Hospital._d_QueueService, _0_Hospital._tc_QueueService)
 
-# QueueService operations and attributes
-QueueService._d_addToQueue = ((omniORB.tcInternal.tv_long, ), (), None)
-QueueService._d_getNextPatient = ((), (omniORB.tcInternal.tv_long, ), None)
-QueueService._d_peekNextPatient = ((), (omniORB.tcInternal.tv_long, ), None)
-QueueService._d_getQueueSize = ((), (omniORB.tcInternal.tv_long, ), None)
+QueueService._d_addToQueue = ((omniORB.tcInternal.tv_long,), (), None)
+QueueService._d_addAppointmentToQueue = ((omniORB.tcInternal.tv_long,), (), None)
+QueueService._d_getNextPatient = ((), (omniORB.tcInternal.tv_long,), None)
+QueueService._d_peekNextPatient = ((), (omniORB.tcInternal.tv_long,), None)
+QueueService._d_getNextQueueEntry = ((), (omniORB.typeMapping["IDL:Hospital/QueueEntry:1.0"],), None)
+QueueService._d_peekNextQueueEntry = ((), (omniORB.typeMapping["IDL:Hospital/QueueEntry:1.0"],), None)
+QueueService._d_listQueue = ((), (omniORB.typeMapping["IDL:Hospital/QueueEntryList:1.0"],), None)
+QueueService._d_getQueueSize = ((), (omniORB.tcInternal.tv_long,), None)
 
-# QueueService object reference
 class _objref_QueueService (CORBA.Object):
     _NP_RepositoryId = QueueService._NP_RepositoryId
-
-    def __init__(self, obj):
-        CORBA.Object.__init__(self, obj)
-
-    def addToQueue(self, *args):
-        return self._obj.invoke("addToQueue", _0_Hospital.QueueService._d_addToQueue, args)
-
-    def getNextPatient(self, *args):
-        return self._obj.invoke("getNextPatient", _0_Hospital.QueueService._d_getNextPatient, args)
-
-    def peekNextPatient(self, *args):
-        return self._obj.invoke("peekNextPatient", _0_Hospital.QueueService._d_peekNextPatient, args)
-
-    def getQueueSize(self, *args):
-        return self._obj.invoke("getQueueSize", _0_Hospital.QueueService._d_getQueueSize, args)
-
+    def __init__(self, obj): CORBA.Object.__init__(self, obj)
+    def addToQueue(self, *args): return self._obj.invoke("addToQueue", _0_Hospital.QueueService._d_addToQueue, args)
+    def addAppointmentToQueue(self, *args): return self._obj.invoke("addAppointmentToQueue", _0_Hospital.QueueService._d_addAppointmentToQueue, args)
+    def getNextPatient(self, *args): return self._obj.invoke("getNextPatient", _0_Hospital.QueueService._d_getNextPatient, args)
+    def peekNextPatient(self, *args): return self._obj.invoke("peekNextPatient", _0_Hospital.QueueService._d_peekNextPatient, args)
+    def getNextQueueEntry(self, *args): return self._obj.invoke("getNextQueueEntry", _0_Hospital.QueueService._d_getNextQueueEntry, args)
+    def peekNextQueueEntry(self, *args): return self._obj.invoke("peekNextQueueEntry", _0_Hospital.QueueService._d_peekNextQueueEntry, args)
+    def listQueue(self, *args): return self._obj.invoke("listQueue", _0_Hospital.QueueService._d_listQueue, args)
+    def getQueueSize(self, *args): return self._obj.invoke("getQueueSize", _0_Hospital.QueueService._d_getQueueSize, args)
 omniORB.registerObjref(QueueService._NP_RepositoryId, _objref_QueueService)
 _0_Hospital._objref_QueueService = _objref_QueueService
 del QueueService, _objref_QueueService
 
-# QueueService skeleton
 __name__ = "Hospital__POA"
 class QueueService (PortableServer.Servant):
     _NP_RepositoryId = _0_Hospital.QueueService._NP_RepositoryId
-
-
-    _omni_op_d = {"addToQueue": _0_Hospital.QueueService._d_addToQueue, "getNextPatient": _0_Hospital.QueueService._d_getNextPatient, "peekNextPatient": _0_Hospital.QueueService._d_peekNextPatient, "getQueueSize": _0_Hospital.QueueService._d_getQueueSize}
-
+    _omni_op_d = {"addToQueue": _0_Hospital.QueueService._d_addToQueue, "addAppointmentToQueue": _0_Hospital.QueueService._d_addAppointmentToQueue, "getNextPatient": _0_Hospital.QueueService._d_getNextPatient, "peekNextPatient": _0_Hospital.QueueService._d_peekNextPatient, "getNextQueueEntry": _0_Hospital.QueueService._d_getNextQueueEntry, "peekNextQueueEntry": _0_Hospital.QueueService._d_peekNextQueueEntry, "listQueue": _0_Hospital.QueueService._d_listQueue, "getQueueSize": _0_Hospital.QueueService._d_getQueueSize}
 QueueService._omni_skeleton = QueueService
 _0_Hospital__POA.QueueService = QueueService
 omniORB.registerSkeleton(QueueService._NP_RepositoryId, QueueService)
@@ -287,15 +305,16 @@ _0_Hospital.Appointment = omniORB.newEmptyClass()
 class Appointment (omniORB.StructBase):
     _NP_RepositoryId = "IDL:Hospital/Appointment:1.0"
 
-    def __init__(self, id, patientId, doctor, appointmentDate, specialty):
+    def __init__(self, id, patientId, doctor, appointmentDate, specialty, status):
         self.id = id
         self.patientId = patientId
         self.doctor = doctor
         self.appointmentDate = appointmentDate
         self.specialty = specialty
+        self.status = status
 
 _0_Hospital.Appointment = Appointment
-_0_Hospital._d_Appointment  = (omniORB.tcInternal.tv_struct, Appointment, Appointment._NP_RepositoryId, "Appointment", "id", omniORB.tcInternal.tv_long, "patientId", omniORB.tcInternal.tv_long, "doctor", (omniORB.tcInternal.tv_string,0), "appointmentDate", (omniORB.tcInternal.tv_string,0), "specialty", (omniORB.tcInternal.tv_string,0))
+_0_Hospital._d_Appointment  = (omniORB.tcInternal.tv_struct, Appointment, Appointment._NP_RepositoryId, "Appointment", "id", omniORB.tcInternal.tv_long, "patientId", omniORB.tcInternal.tv_long, "doctor", (omniORB.tcInternal.tv_string,0), "appointmentDate", (omniORB.tcInternal.tv_string,0), "specialty", (omniORB.tcInternal.tv_string,0), "status", (omniORB.tcInternal.tv_string,0))
 _0_Hospital._tc_Appointment = omniORB.tcInternal.createTypeCode(_0_Hospital._d_Appointment)
 omniORB.registerType(Appointment._NP_RepositoryId, _0_Hospital._d_Appointment, _0_Hospital._tc_Appointment)
 del Appointment
@@ -333,6 +352,7 @@ omniORB.registerType(AppointmentService._NP_RepositoryId, _0_Hospital._d_Appoint
 AppointmentService._d_scheduleAppointment = ((omniORB.tcInternal.tv_long, (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:Hospital/Appointment:1.0"], ), None)
 AppointmentService._d_findAppointmentById = ((omniORB.tcInternal.tv_long, ), (omniORB.typeMapping["IDL:Hospital/Appointment:1.0"], ), None)
 AppointmentService._d_listAppointments = ((), (omniORB.typeMapping["IDL:Hospital/AppointmentList:1.0"], ), None)
+AppointmentService._d_updateAppointmentStatus = ((omniORB.tcInternal.tv_long, (omniORB.tcInternal.tv_string,0)), (), None)
 
 # AppointmentService object reference
 class _objref_AppointmentService (CORBA.Object):
@@ -350,6 +370,9 @@ class _objref_AppointmentService (CORBA.Object):
     def listAppointments(self, *args):
         return self._obj.invoke("listAppointments", _0_Hospital.AppointmentService._d_listAppointments, args)
 
+    def updateAppointmentStatus(self, *args):
+        return self._obj.invoke("updateAppointmentStatus", _0_Hospital.AppointmentService._d_updateAppointmentStatus, args)
+
 omniORB.registerObjref(AppointmentService._NP_RepositoryId, _objref_AppointmentService)
 _0_Hospital._objref_AppointmentService = _objref_AppointmentService
 del AppointmentService, _objref_AppointmentService
@@ -360,7 +383,7 @@ class AppointmentService (PortableServer.Servant):
     _NP_RepositoryId = _0_Hospital.AppointmentService._NP_RepositoryId
 
 
-    _omni_op_d = {"scheduleAppointment": _0_Hospital.AppointmentService._d_scheduleAppointment, "findAppointmentById": _0_Hospital.AppointmentService._d_findAppointmentById, "listAppointments": _0_Hospital.AppointmentService._d_listAppointments}
+    _omni_op_d = {"scheduleAppointment": _0_Hospital.AppointmentService._d_scheduleAppointment, "findAppointmentById": _0_Hospital.AppointmentService._d_findAppointmentById, "listAppointments": _0_Hospital.AppointmentService._d_listAppointments, "updateAppointmentStatus": _0_Hospital.AppointmentService._d_updateAppointmentStatus}
 
 AppointmentService._omni_skeleton = AppointmentService
 _0_Hospital__POA.AppointmentService = AppointmentService

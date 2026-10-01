@@ -117,9 +117,9 @@ class DoctorDashboard(QWidget):
         layout.addWidget(self.call_status_label)
 
         self.patients_table = QTableWidget()
-        self.patients_table.setColumnCount(5)
+        self.patients_table.setColumnCount(6)
         self.patients_table.setHorizontalHeaderLabels(
-            ["Paciente", "ID", "Data e hora", "Especialidade", ""]
+            ["Paciente", "ID", "Data e hora", "Especialidade", "Estado", ""]
         )
         self.patients_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.patients_table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -255,18 +255,30 @@ class DoctorDashboard(QWidget):
         self.patients_table.setRowCount(len(appointments))
         for row, appointment in enumerate(appointments):
             patient_name = names.get(appointment.patientId, f"Paciente #{appointment.patientId}")
-            values = [patient_name, appointment.patientId, appointment.appointmentDate, appointment.specialty]
+            values = [patient_name, appointment.patientId, appointment.appointmentDate, appointment.specialty, getattr(appointment, "status", "AGENDADA")]
             for column, value in enumerate(values):
                 self.patients_table.setItem(row, column, QTableWidgetItem(str(value)))
 
             already_called = appointment.id in self._called_appointments
-            button = QPushButton("Chamar novamente" if already_called else "Chamar paciente")
+            status = getattr(appointment, "status", "AGENDADA")
+            if status == "EM_ATENDIMENTO":
+                button = QPushButton("Concluir atendimento")
+                button.clicked.connect(lambda _checked=False, aid=appointment.id: self.finish_appointment(aid))
+            elif status == "CHAMADA":
+                button = QPushButton("Iniciar atendimento")
+                button.clicked.connect(lambda _checked=False, aid=appointment.id: self.start_appointment(aid))
+            elif status in {"CONCLUIDA", "CANCELADA", "FALTOU"}:
+                button = QPushButton(status.replace("_", " ").title())
+                button.setEnabled(False)
+            else:
+                button = QPushButton("Chamar novamente" if already_called else "Chamar paciente")
             button.setObjectName("tableActionButton")
             button.setCursor(Qt.PointingHandCursor)
             button.setFixedHeight(36)
-            button.clicked.connect(
-                lambda _checked=False, a=appointment, n=patient_name, b=button: self.call_patient(a, n, b)
-            )
+            if status not in {"EM_ATENDIMENTO", "CHAMADA", "CONCLUIDA", "CANCELADA", "FALTOU"}:
+                button.clicked.connect(
+                    lambda _checked=False, a=appointment, n=patient_name, b=button: self.call_patient(a, n, b)
+                )
             holder = QWidget()
             holder_layout = QHBoxLayout(holder)
             holder_layout.setContentsMargins(6, 0, 6, 0)
@@ -281,6 +293,7 @@ class DoctorDashboard(QWidget):
     def call_patient(self, appointment, patient_name, button):
         button.setEnabled(False)
         try:
+            self.app.update_appointment_status(appointment.id, "CHAMADA")
             self.app.call_patient(appointment, patient_name)
         except Exception as error:
             QMessageBox.critical(
@@ -299,9 +312,23 @@ class DoctorDashboard(QWidget):
         self._called_appointments.add(appointment.id)
         button.setText("Chamar novamente")
         self.call_status_label.setText(
-            f"✓ {patient_name} foi chamado às {datetime.now():%H:%M}. A recepção foi notificada."
+            f"✓ {patient_name} foi chamado às {datetime.now():%H:%M}. Estado: CHAMADA. A recepção foi notificada."
         )
         self.call_status_label.show()
+
+    def start_appointment(self, appointment_id):
+        try:
+            self.app.update_appointment_status(appointment_id, "EM_ATENDIMENTO")
+            self.load_patients(silent=True)
+        except Exception as error:
+            QMessageBox.critical(self, "Erro", f"Não foi possível iniciar o atendimento:\n{error}")
+
+    def finish_appointment(self, appointment_id):
+        try:
+            self.app.update_appointment_status(appointment_id, "CONCLUIDA")
+            self.load_patients(silent=True)
+        except Exception as error:
+            QMessageBox.critical(self, "Erro", f"Não foi possível concluir o atendimento:\n{error}")
 
     # ------------------------------------------------------------------
     # Fila de atendimento (já existente)
@@ -313,7 +340,14 @@ class DoctorDashboard(QWidget):
             self.queue_size_label.setText(f"Na fila: {queue_size}")
 
             if queue_size > 0:
-                self.next_patient_value.setText(str(self.app.peek_next_patient()))
+                entry = self.app.peek_next_queue_entry()
+                if getattr(entry, "id", 0) == 0:
+                    self.next_patient_value.setText("Nenhum paciente")
+                else:
+                    label = f"#{entry.patientId} — {entry.patientName}"
+                    if entry.appointmentId:
+                        label += f"  · Consulta #{entry.appointmentId}"
+                    self.next_patient_value.setText(label)
             else:
                 self.next_patient_value.setText("Nenhum paciente")
 
@@ -333,20 +367,26 @@ class DoctorDashboard(QWidget):
 
     def call_next_patient(self):
         try:
-            patient_id = self.app.get_next_patient()
+            entry = self.app.get_next_queue_entry()
 
-            if patient_id == 0:
+            if getattr(entry, "id", 0) == 0:
                 QMessageBox.information(self, "Fila vazia", "Não existem pacientes na fila.")
                 return
 
-            self.next_patient_value.setText(str(patient_id))
+            self.next_patient_value.setText(f"#{entry.patientId} — {entry.patientName}")
+
+            if entry.appointmentId:
+                appointment = self.app.find_appointment_by_id(entry.appointmentId)
+                self.app.call_patient(appointment, entry.patientName)
+                self._called_appointments.add(entry.appointmentId)
 
             self.load_queue()
 
             QMessageBox.information(
                 self,
                 "Paciente chamado",
-                f"O paciente #{patient_id} foi chamado para atendimento.",
+                f"{entry.patientName} (#{entry.patientId}) foi chamado para atendimento."
+                + (f"\nConsulta #{entry.appointmentId}. Estado: CHAMADA. A recepção foi notificada." if entry.appointmentId else ""),
             )
 
         except Exception as error:

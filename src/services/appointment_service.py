@@ -30,3 +30,6 @@ class AppointmentService:
         service = self.corba_client.get_appointment_service()
 
         return list(service.listAppointments())
+    def update_status(self, appointment_id: int, status: str) -> None:
+        service = self.corba_client.get_appointment_service()
+        service.updateAppointmentStatus(appointment_id, status)
