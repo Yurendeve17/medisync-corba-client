@@ -273,6 +273,7 @@ class DoctorDashboard(QWidget):
             else:
                 button = QPushButton("Chamar novamente" if already_called else "Chamar paciente")
             button.setObjectName("tableActionButton")
+            button.setProperty("status", status)
             button.setCursor(Qt.PointingHandCursor)
             button.setFixedHeight(36)
             if status not in {"EM_ATENDIMENTO", "CHAMADA", "CONCLUIDA", "CANCELADA", "FALTOU"}:
@@ -321,7 +322,7 @@ class DoctorDashboard(QWidget):
             self.app.update_appointment_status(appointment_id, "EM_ATENDIMENTO")
             self.load_patients(silent=True)
         except Exception as error:
-            QMessageBox.critical(self, "Erro", f"Não foi possível iniciar o atendimento:\n{error}")
+            QMessageBox.warning(self, "Atendimento em curso", str(error))
 
     def finish_appointment(self, appointment_id):
         try:
