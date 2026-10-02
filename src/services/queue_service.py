@@ -29,6 +29,14 @@ class QueueService:
         service = self.corba_client.get_queue_service()
         return service.peekNextQueueEntry()
 
+    def get_next_entry_for_doctor(self, doctor: str) -> Any:
+        service = self.corba_client.get_queue_service()
+        return service.getNextQueueEntryForDoctor(doctor)
+
+    def peek_next_entry_for_doctor(self, doctor: str) -> Any:
+        service = self.corba_client.get_queue_service()
+        return service.peekNextQueueEntryForDoctor(doctor)
+
     def list_queue(self) -> list[Any]:
         service = self.corba_client.get_queue_service()
         return list(service.listQueue())

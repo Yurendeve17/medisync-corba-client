@@ -109,6 +109,12 @@ class MediSyncApp:
     def get_next_queue_entry(self) -> Any:
         return self.queue_service.get_next_entry()
 
+    def get_next_queue_entry_for_doctor(self, doctor_name: str) -> Any:
+        return self.queue_service.get_next_entry_for_doctor(doctor_name)
+
+    def peek_next_queue_entry_for_doctor(self, doctor_name: str) -> Any:
+        return self.queue_service.peek_next_entry_for_doctor(doctor_name)
+
     def peek_next_patient(self) -> int:
         return self.queue_service.peek_next_patient()
 

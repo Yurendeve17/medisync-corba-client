@@ -734,3 +734,14 @@ QLabel#toastText {
     font-weight: 700;
     background: transparent;
 }
+
+
+/* Estado da consulta no dashboard médico */
+QPushButton#tableActionButton[appointmentStatus="AGENDADA"] { background: #2f80ed; color: white; }
+QPushButton#tableActionButton[appointmentStatus="CONFIRMADA"] { background: #8e44ad; color: white; }
+QPushButton#tableActionButton[appointmentStatus="AGUARDANDO"] { background: #f39c12; color: white; }
+QPushButton#tableActionButton[appointmentStatus="CHAMADA"] { background: #e67e22; color: white; }
+QPushButton#tableActionButton[appointmentStatus="EM_ATENDIMENTO"] { background: #27ae60; color: white; }
+QPushButton#tableActionButton[appointmentStatus="CONCLUIDA"] { background: #7f8c8d; color: white; }
+QPushButton#tableActionButton[appointmentStatus="CANCELADA"] { background: #c0392b; color: white; }
+QPushButton#tableActionButton[appointmentStatus="FALTOU"] { background: #795548; color: white; }

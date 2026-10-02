@@ -272,6 +272,8 @@ QueueService._d_getNextPatient = ((), (omniORB.tcInternal.tv_long,), None)
 QueueService._d_peekNextPatient = ((), (omniORB.tcInternal.tv_long,), None)
 QueueService._d_getNextQueueEntry = ((), (omniORB.typeMapping["IDL:Hospital/QueueEntry:1.0"],), None)
 QueueService._d_peekNextQueueEntry = ((), (omniORB.typeMapping["IDL:Hospital/QueueEntry:1.0"],), None)
+QueueService._d_getNextQueueEntryForDoctor = (((omniORB.tcInternal.tv_string, 0),), (omniORB.typeMapping["IDL:Hospital/QueueEntry:1.0"],), None)
+QueueService._d_peekNextQueueEntryForDoctor = (((omniORB.tcInternal.tv_string, 0),), (omniORB.typeMapping["IDL:Hospital/QueueEntry:1.0"],), None)
 QueueService._d_listQueue = ((), (omniORB.typeMapping["IDL:Hospital/QueueEntryList:1.0"],), None)
 QueueService._d_getQueueSize = ((), (omniORB.tcInternal.tv_long,), None)
 
@@ -284,6 +286,8 @@ class _objref_QueueService (CORBA.Object):
     def peekNextPatient(self, *args): return self._obj.invoke("peekNextPatient", _0_Hospital.QueueService._d_peekNextPatient, args)
     def getNextQueueEntry(self, *args): return self._obj.invoke("getNextQueueEntry", _0_Hospital.QueueService._d_getNextQueueEntry, args)
     def peekNextQueueEntry(self, *args): return self._obj.invoke("peekNextQueueEntry", _0_Hospital.QueueService._d_peekNextQueueEntry, args)
+    def getNextQueueEntryForDoctor(self, *args): return self._obj.invoke("getNextQueueEntryForDoctor", _0_Hospital.QueueService._d_getNextQueueEntryForDoctor, args)
+    def peekNextQueueEntryForDoctor(self, *args): return self._obj.invoke("peekNextQueueEntryForDoctor", _0_Hospital.QueueService._d_peekNextQueueEntryForDoctor, args)
     def listQueue(self, *args): return self._obj.invoke("listQueue", _0_Hospital.QueueService._d_listQueue, args)
     def getQueueSize(self, *args): return self._obj.invoke("getQueueSize", _0_Hospital.QueueService._d_getQueueSize, args)
 omniORB.registerObjref(QueueService._NP_RepositoryId, _objref_QueueService)
@@ -293,7 +297,7 @@ del QueueService, _objref_QueueService
 __name__ = "Hospital__POA"
 class QueueService (PortableServer.Servant):
     _NP_RepositoryId = _0_Hospital.QueueService._NP_RepositoryId
-    _omni_op_d = {"addToQueue": _0_Hospital.QueueService._d_addToQueue, "addAppointmentToQueue": _0_Hospital.QueueService._d_addAppointmentToQueue, "getNextPatient": _0_Hospital.QueueService._d_getNextPatient, "peekNextPatient": _0_Hospital.QueueService._d_peekNextPatient, "getNextQueueEntry": _0_Hospital.QueueService._d_getNextQueueEntry, "peekNextQueueEntry": _0_Hospital.QueueService._d_peekNextQueueEntry, "listQueue": _0_Hospital.QueueService._d_listQueue, "getQueueSize": _0_Hospital.QueueService._d_getQueueSize}
+    _omni_op_d = {"addToQueue": _0_Hospital.QueueService._d_addToQueue, "addAppointmentToQueue": _0_Hospital.QueueService._d_addAppointmentToQueue, "getNextPatient": _0_Hospital.QueueService._d_getNextPatient, "peekNextPatient": _0_Hospital.QueueService._d_peekNextPatient, "getNextQueueEntry": _0_Hospital.QueueService._d_getNextQueueEntry, "peekNextQueueEntry": _0_Hospital.QueueService._d_peekNextQueueEntry, "getNextQueueEntryForDoctor": _0_Hospital.QueueService._d_getNextQueueEntryForDoctor, "peekNextQueueEntryForDoctor": _0_Hospital.QueueService._d_peekNextQueueEntryForDoctor, "listQueue": _0_Hospital.QueueService._d_listQueue, "getQueueSize": _0_Hospital.QueueService._d_getQueueSize}
 QueueService._omni_skeleton = QueueService
 _0_Hospital__POA.QueueService = QueueService
 omniORB.registerSkeleton(QueueService._NP_RepositoryId, QueueService)

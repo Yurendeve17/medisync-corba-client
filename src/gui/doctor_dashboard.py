@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from .icons import qicon
+from application.medisync_app import normalize_doctor_name
 
 REFRESH_MS = 20_000
 ROLE_LABELS = {"RECEPTION": "Recepção", "DOCTOR": "Médico"}
@@ -267,15 +268,25 @@ class DoctorDashboard(QWidget):
             elif status == "CHAMADA":
                 button = QPushButton("Iniciar atendimento")
                 button.clicked.connect(lambda _checked=False, aid=appointment.id: self.start_appointment(aid))
+            elif status == "AGUARDANDO":
+                button = QPushButton("Chamar novamente" if already_called else "Chamar paciente")
+            elif status == "CONFIRMADA":
+                button = QPushButton("Presença confirmada")
+                button.setEnabled(False)
+            elif status == "AGENDADA":
+                button = QPushButton("Aguardando chegada")
+                button.setEnabled(False)
             elif status in {"CONCLUIDA", "CANCELADA", "FALTOU"}:
                 button = QPushButton(status.replace("_", " ").title())
                 button.setEnabled(False)
             else:
-                button = QPushButton("Chamar novamente" if already_called else "Chamar paciente")
+                button = QPushButton(status.replace("_", " ").title())
+                button.setEnabled(False)
             button.setObjectName("tableActionButton")
+            button.setProperty("appointmentStatus", status)
             button.setCursor(Qt.PointingHandCursor)
             button.setFixedHeight(36)
-            if status not in {"EM_ATENDIMENTO", "CHAMADA", "CONCLUIDA", "CANCELADA", "FALTOU"}:
+            if status == "AGUARDANDO":
                 button.clicked.connect(
                     lambda _checked=False, a=appointment, n=patient_name, b=button: self.call_patient(a, n, b)
                 )
@@ -334,13 +345,24 @@ class DoctorDashboard(QWidget):
     # Fila de atendimento (já existente)
     # ------------------------------------------------------------------
     def load_queue(self):
-        try:
-            queue_size = self.app.get_queue_size()
+        doctor_name = self._display_name()
+        if not doctor_name:
+            return
 
-            self.queue_size_label.setText(f"Na fila: {queue_size}")
+        try:
+            waiting_entries = [
+                entry
+                for entry in self.app.list_queue()
+                if getattr(entry, "status", "") == "AGUARDANDO"
+                and normalize_doctor_name(getattr(entry, "doctor", ""))
+                == normalize_doctor_name(doctor_name)
+            ]
+
+            queue_size = len(waiting_entries)
+            self.queue_size_label.setText(f"Na sua fila: {queue_size}")
 
             if queue_size > 0:
-                entry = self.app.peek_next_queue_entry()
+                entry = self.app.peek_next_queue_entry_for_doctor(doctor_name)
                 if getattr(entry, "id", 0) == 0:
                     self.next_patient_value.setText("Nenhum paciente")
                 else:
@@ -366,11 +388,19 @@ class DoctorDashboard(QWidget):
             )
 
     def call_next_patient(self):
+        doctor_name = self._display_name()
+        if not doctor_name:
+            return
+
         try:
-            entry = self.app.get_next_queue_entry()
+            entry = self.app.get_next_queue_entry_for_doctor(doctor_name)
 
             if getattr(entry, "id", 0) == 0:
-                QMessageBox.information(self, "Fila vazia", "Não existem pacientes na fila.")
+                QMessageBox.information(
+                    self,
+                    "Fila vazia",
+                    "Não existem pacientes aguardando na sua fila.",
+                )
                 return
 
             self.next_patient_value.setText(f"#{entry.patientId} — {entry.patientName}")
@@ -386,7 +416,11 @@ class DoctorDashboard(QWidget):
                 self,
                 "Paciente chamado",
                 f"{entry.patientName} (#{entry.patientId}) foi chamado para atendimento."
-                + (f"\nConsulta #{entry.appointmentId}. Estado: CHAMADA. A recepção foi notificada." if entry.appointmentId else ""),
+                + (
+                    f"\nConsulta #{entry.appointmentId}. Estado: CHAMADA. A recepção foi notificada."
+                    if entry.appointmentId
+                    else ""
+                ),
             )
 
         except Exception as error:

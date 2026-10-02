@@ -3,7 +3,7 @@ from PySide6.QtGui import QColor, QFont, QKeySequence, QPainter, QPainterPath, Q
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QMessageBox,
-    QStackedWidget, QDateEdit, QTimeEdit, QToolButton, QSizePolicy, QMenu,
+    QStackedWidget, QDateEdit, QToolButton, QSizePolicy, QMenu,
     QScrollArea, QGraphicsDropShadowEffect,
 )
 
@@ -819,8 +819,18 @@ class ReceptionDashboard(QWidget):
         lay.addLayout(self._form_row("Nome", self.appointment_patient_name_input, LABEL_W_SHORT))
         lay.addSpacing(ROW_GAP)
 
+        self._section_header(lay, "stethoscope", "Especialidade e médico")
+
+        self.appointment_specialty_input = self._combo("stethoscope")
+        self.appointment_specialty_input.setPlaceholderText("Seleccione a especialidade")
+        self.appointment_specialty_input.setCurrentIndex(-1)
+        self.appointment_specialty_input.currentIndexChanged.connect(self.filter_doctors_by_specialty)
+        lay.addWidget(self._stack("Especialidade", self.appointment_specialty_input))
+        lay.addSpacing(ROW_GAP)
+
         self.appointment_doctor_input = self._combo()
-        self.appointment_doctor_input.addItem("Seleccione o médico")
+        self.appointment_doctor_input.addItem("Seleccione primeiro a especialidade")
+        self.appointment_doctor_input.setEnabled(False)
         lay.addLayout(self._form_row("Médico", self.appointment_doctor_input, LABEL_W_SHORT))
 
         self._section_header(lay, "calendar", "Detalhes da consulta")
@@ -831,13 +841,11 @@ class ReceptionDashboard(QWidget):
         self.appointment_date_input.setFixedHeight(FIELD_H)
         self.appointment_date_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._guard(self.appointment_date_input)
-        self.appointment_time_input = QTimeEdit(QDateTime.currentDateTime().time())
-        self.appointment_time_input.setDisplayFormat("HH:mm")
-        self.appointment_time_input.setButtonSymbols(QTimeEdit.NoButtons)
-        self.appointment_time_input.setFixedHeight(FIELD_H)
-        self.appointment_time_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self._guard(self.appointment_time_input)
-        _IconOverlay(self.appointment_time_input, "clock", "#4a6a80", side="right")
+
+        self.appointment_time_input = self._combo("clock")
+        for hour in range(24):
+            for minute in (0, 30):
+                self.appointment_time_input.addItem(f"{hour:02d}:{minute:02d}")
 
         details = QHBoxLayout()
         details.setContentsMargins(0, 0, 0, 0)
@@ -845,13 +853,6 @@ class ReceptionDashboard(QWidget):
         details.addWidget(self._stack("Data", self.appointment_date_input), 1)
         details.addWidget(self._stack("Hora", self.appointment_time_input), 1)
         lay.addLayout(details)
-        lay.addSpacing(ROW_GAP)
-
-        self.appointment_specialty_input = self._combo("stethoscope", editable=True)
-        self.appointment_specialty_input.setCurrentIndex(-1)
-        self.appointment_specialty_input.setCurrentIndex(-1)
-        self.appointment_specialty_input.lineEdit().setPlaceholderText("Ex.: Clínica Geral")
-        lay.addWidget(self._stack("Especialidade", self.appointment_specialty_input))
 
         lay.addSpacing(16)
         lay.addLayout(self._actions("Agendar consulta", "calendar", self.schedule_appointment, self.clear_appointment_form))
@@ -914,7 +915,7 @@ class ReceptionDashboard(QWidget):
 
     def _patients_page(self):
         scroll, col = self._scaffold(TABLE_MAX_W)
-        col.addWidget(self._page_header("users", "Pacientes", "Consulte os pacientes registados e adicione-os à fila.", art="users"))
+        col.addWidget(self._page_header("users", "Pacientes", "Consulte os pacientes registados.", art="users"))
         card, lay = self._card((22, 20, 22, 22))
         lay.setSpacing(14)
         actions = QHBoxLayout()
@@ -922,15 +923,10 @@ class ReceptionDashboard(QWidget):
         title.setObjectName("cardTitle")
         actions.addWidget(title)
         actions.addStretch()
-        queue = QPushButton("Adicionar à fila")
-        queue.setObjectName("successButton")
-        queue.setFixedHeight(44)
-        queue.clicked.connect(self.add_selected_patient_to_queue)
         refresh = QPushButton("Actualizar")
         refresh.setObjectName("secondaryButton")
         refresh.setFixedHeight(44)
         refresh.clicked.connect(self.load_patients)
-        actions.addWidget(queue)
         actions.addWidget(refresh)
         lay.addLayout(actions)
         self.patients_table = self._table(["ID", "Nome completo", "Nascimento", "Género", "Telefone"])
@@ -948,6 +944,18 @@ class ReceptionDashboard(QWidget):
         title.setObjectName("cardTitle")
         actions.addWidget(title)
         actions.addStretch()
+        confirm_arrival = QPushButton("Confirmar presença")
+        confirm_arrival.setObjectName("successButton")
+        confirm_arrival.setFixedHeight(44)
+        confirm_arrival.clicked.connect(self.confirm_selected_arrival)
+        actions.addWidget(confirm_arrival)
+
+        add_queue = QPushButton("Adicionar à fila")
+        add_queue.setObjectName("successButton")
+        add_queue.setFixedHeight(44)
+        add_queue.clicked.connect(self.add_selected_appointment_to_queue)
+        actions.addWidget(add_queue)
+
         refresh = QPushButton("Actualizar")
         refresh.setObjectName("secondaryButton")
         refresh.setFixedHeight(44)
@@ -981,21 +989,46 @@ class ReceptionDashboard(QWidget):
     # ------------------------------------------------------------------
     def load_directory(self):
         try:
-            doctors = self.app.list_doctors()
+            self._directory_doctors = self.app.list_doctors()
             specialties = self.app.list_specialties()
-            self.appointment_doctor_input.blockSignals(True)
-            self.appointment_doctor_input.clear()
+
+            self.appointment_specialty_input.blockSignals(True)
+            self.appointment_specialty_input.clear()
+            for specialty in specialties:
+                if getattr(specialty, "active", True):
+                    self.appointment_specialty_input.addItem(specialty.name, specialty.id)
+            self.appointment_specialty_input.setCurrentIndex(-1)
+            self.appointment_specialty_input.blockSignals(False)
+
+            self.filter_doctors_by_specialty(-1)
+        except Exception as error:
+            self.show_error(f"Não foi possível carregar médicos e especialidades:\n{error}")
+
+    def filter_doctors_by_specialty(self, index):
+        if not hasattr(self, "appointment_doctor_input"):
+            return
+
+        specialty_name = self.appointment_specialty_input.currentText().strip()
+        self.appointment_doctor_input.blockSignals(True)
+        self.appointment_doctor_input.clear()
+
+        if self.appointment_specialty_input.currentData() is None or not specialty_name:
+            self.appointment_doctor_input.addItem("Seleccione primeiro a especialidade")
+            self.appointment_doctor_input.setEnabled(False)
+        else:
+            doctors = [
+                doctor for doctor in getattr(self, "_directory_doctors", [])
+                if getattr(doctor, "active", True) and getattr(doctor, "specialty", "") == specialty_name
+            ]
             self.appointment_doctor_input.addItem("Seleccione o médico")
             for doctor in doctors:
                 self.appointment_doctor_input.addItem(doctor.fullName, doctor.id)
-            self.appointment_doctor_input.blockSignals(False)
+            self.appointment_doctor_input.setEnabled(bool(doctors))
+            if not doctors:
+                self.appointment_doctor_input.setItemText(0, "Não existem médicos para esta especialidade")
 
-            self.appointment_specialty_input.clear()
-            for specialty in specialties:
-                self.appointment_specialty_input.addItem(specialty.name, specialty.id)
-            self.appointment_specialty_input.setCurrentIndex(-1)
-        except Exception as error:
-            self.show_error(f"Não foi possível carregar médicos e especialidades:\n{error}")
+        self.appointment_doctor_input.setCurrentIndex(0)
+        self.appointment_doctor_input.blockSignals(False)
 
     def find_appointment_patient(self):
         patient_id_text = self.appointment_patient_id_input.text().strip()
@@ -1049,8 +1082,9 @@ class ReceptionDashboard(QWidget):
         patient_id_text = self.appointment_patient_id_input.text().strip()
         doctor = self.appointment_doctor_input.currentText().strip()
         specialty = self.appointment_specialty_input.currentText().strip()
+        appointment_time = self.appointment_time_input.currentText().strip()
         appointment_date = (self.appointment_date_input.date().toString("yyyy-MM-dd") + " " +
-                            self.appointment_time_input.time().toString("HH:mm"))
+                            appointment_time)
 
         if not patient_id_text:
             self.show_error("Introduza o ID do paciente.")
@@ -1058,11 +1092,14 @@ class ReceptionDashboard(QWidget):
         if not patient_id_text.isdigit():
             self.show_error("O ID do paciente deve ser numérico.")
             return
-        if not doctor or doctor == "Seleccione o médico":
-            self.show_error("Seleccione o médico.")
-            return
         if not specialty:
-            self.show_error("Introduza a especialidade.")
+            self.show_error("Seleccione primeiro a especialidade.")
+            return
+        if not doctor or doctor in {"Seleccione o médico", "Seleccione primeiro a especialidade", "Não existem médicos para esta especialidade"}:
+            self.show_error("Seleccione um médico disponível para a especialidade escolhida.")
+            return
+        if appointment_time not in {f"{hour:02d}:{minute:02d}" for hour in range(24) for minute in (0, 30)}:
+            self.show_error("Seleccione uma hora em intervalos de 30 minutos.")
             return
 
         try:
@@ -1077,6 +1114,44 @@ class ReceptionDashboard(QWidget):
             self.load_appointments()
         except Exception as error:
             self.show_error(f"Não foi possível agendar a consulta:\n{error}")
+
+    def confirm_selected_arrival(self):
+        if not hasattr(self, "appointments_table"):
+            return
+
+        selected = self.appointments_table.selectionModel().selectedRows()
+        if not selected:
+            self.show_error("Seleccione uma consulta antes de confirmar a chegada.")
+            return
+
+        row = selected[0].row()
+        id_item = self.appointments_table.item(row, 0)
+        status_item = self.appointments_table.item(row, 5)
+        if id_item is None or status_item is None:
+            self.show_error("Não foi possível identificar a consulta seleccionada.")
+            return
+
+        appointment_id = int(id_item.text())
+        status = status_item.text().strip().upper()
+        if status != "AGENDADA":
+            self.show_error(
+                f"A consulta #{appointment_id} não pode confirmar presença no estado {status}."
+            )
+            return
+
+        try:
+            self.app.update_appointment_status(appointment_id, "CONFIRMADA")
+            QMessageBox.information(
+                self,
+                "Presença confirmada",
+                f"A presença do paciente na consulta #{appointment_id} foi confirmada.\n\n"
+                "Agora use 'Adicionar à fila' para colocar a consulta na fila de atendimento.",
+            )
+            self.load_appointments()
+        except Exception as error:
+            self.show_error(
+                f"Não foi possível confirmar a chegada da consulta #{appointment_id}:\n{error}"
+            )
 
     def load_appointments(self):
         try:
@@ -1097,36 +1172,36 @@ class ReceptionDashboard(QWidget):
         except Exception as error:
             self.show_error(f"Não foi possível carregar as consultas:\n{error}")
 
-    def add_selected_patient_to_queue(self):
-        selected = self.patients_table.selectionModel().selectedRows()
-        if not selected:
-            self.show_error("Seleccione um paciente antes de o adicionar à fila.")
+    def add_selected_appointment_to_queue(self):
+        if not hasattr(self, "appointments_table"):
             return
-        item = self.patients_table.item(selected[0].row(), 0)
-        if item is None:
-            self.show_error("Não foi possível obter o ID do paciente.")
-            return
-        patient_id = int(item.text())
-        try:
-            appointments = [
-                a for a in self.app.list_appointments()
-                if a.patientId == patient_id
-                and getattr(a, "status", "AGENDADA") == "AGENDADA"
-            ]
-            appointments.sort(key=lambda a: a.appointmentDate)
-            if not appointments:
-                self.show_error(
-                    f"O paciente #{patient_id} não possui uma consulta AGENDADA disponível para entrar na fila."
-                )
-                return
 
-            appointment = appointments[0]
-            self.app.add_appointment_to_queue(appointment.id)
+        selected = self.appointments_table.selectionModel().selectedRows()
+        if not selected:
+            self.show_error("Seleccione uma consulta antes de a adicionar à fila.")
+            return
+
+        row = selected[0].row()
+        id_item = self.appointments_table.item(row, 0)
+        status_item = self.appointments_table.item(row, 5)
+        if id_item is None or status_item is None:
+            self.show_error("Não foi possível identificar a consulta seleccionada.")
+            return
+
+        appointment_id = int(id_item.text())
+        status = status_item.text().strip().upper()
+        if status != "CONFIRMADA":
+            self.show_error(
+                f"A consulta #{appointment_id} só pode entrar na fila depois de a presença ser confirmada. Estado actual: {status}."
+            )
+            return
+
+        try:
+            self.app.add_appointment_to_queue(appointment_id)
             QMessageBox.information(
                 self,
-                "Sucesso",
-                f"A consulta #{appointment.id} do paciente #{patient_id} foi adicionada à fila.\n"
-                "O estado da consulta passou para AGUARDANDO.",
+                "Consulta adicionada à fila",
+                f"A consulta #{appointment_id} foi adicionada à fila.\n\nO estado passou para AGUARDANDO.",
             )
             self.load_appointments()
         except Exception as error:
@@ -1154,7 +1229,7 @@ class ReceptionDashboard(QWidget):
         self.appointment_specialty_input.clearEditText()
         self.appointment_patient_name_input.clear()
         self.appointment_date_input.setDate(QDateTime.currentDateTime().date())
-        self.appointment_time_input.setTime(QDateTime.currentDateTime().time())
+        self.appointment_time_input.setCurrentIndex(0)
 
     def clear_form(self):
         self.full_name_input.clear()
