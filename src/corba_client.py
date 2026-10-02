@@ -84,6 +84,9 @@ class CorbaClient:
             Hospital.PatientService,
         )
 
+    def get_directory_service(self):
+        return self._resolve_service("DirectoryService", Hospital.DirectoryService)
+
     def get_queue_service(self):
         return self._resolve_service(
             "QueueService",

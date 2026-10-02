@@ -8,6 +8,7 @@ from services.patient_service import PatientService
 from services.queue_service import QueueService
 from services.appointment_service import AppointmentService
 from services.notification_service import NotificationService
+from services.directory_service import DirectoryService
 
 def normalize_doctor_name(name: str) -> str:
     """'Dr. Carlos Silva' e 'Carlos Silva' passam a ser o mesmo nome."""
@@ -40,6 +41,8 @@ class MediSyncApp:
         self.notification_service = NotificationService(
             self.corba_client
         )
+
+        self.directory_service = DirectoryService(self.corba_client)
 
         self.current_user = None
 
@@ -157,6 +160,14 @@ class MediSyncApp:
             for appointment in self.list_appointments()
             if normalize_doctor_name(appointment.doctor) == wanted
         ]
+
+    # Médicos e especialidades
+
+    def list_doctors(self) -> list[Any]:
+        return self.directory_service.list_doctors()
+
+    def list_specialties(self) -> list[Any]:
+        return self.directory_service.list_specialties()
 
     # Notificações
 

@@ -491,3 +491,71 @@ __name__ = "hospital_idl"
 _exported_modules = ( "Hospital", )
 
 # The end.
+
+# Incremento 03 - DirectoryService
+_0_Hospital.Doctor = omniORB.newEmptyClass()
+class Doctor (omniORB.StructBase):
+    _NP_RepositoryId = "IDL:Hospital/Doctor:1.0"
+    def __init__(self, id, fullName, specialty, active):
+        self.id=id; self.fullName=fullName; self.specialty=specialty; self.active=active
+_0_Hospital.Doctor = Doctor
+_0_Hospital._d_Doctor=(omniORB.tcInternal.tv_struct, Doctor, Doctor._NP_RepositoryId, "Doctor", "id", omniORB.tcInternal.tv_long, "fullName", (omniORB.tcInternal.tv_string,0), "specialty", (omniORB.tcInternal.tv_string,0), "active", omniORB.tcInternal.tv_boolean)
+_0_Hospital._tc_Doctor=omniORB.tcInternal.createTypeCode(_0_Hospital._d_Doctor)
+omniORB.registerType(Doctor._NP_RepositoryId,_0_Hospital._d_Doctor,_0_Hospital._tc_Doctor)
+del Doctor
+class DoctorList:
+    _NP_RepositoryId="IDL:Hospital/DoctorList:1.0"
+    def __init__(self,*args,**kw): raise RuntimeError("Cannot construct objects of this type.")
+_0_Hospital.DoctorList=DoctorList
+_0_Hospital._d_DoctorList=(omniORB.tcInternal.tv_sequence,omniORB.typeMapping["IDL:Hospital/Doctor:1.0"],0)
+_0_Hospital._ad_DoctorList=(omniORB.tcInternal.tv_alias,DoctorList._NP_RepositoryId,"DoctorList",_0_Hospital._d_DoctorList)
+_0_Hospital._tc_DoctorList=omniORB.tcInternal.createTypeCode(_0_Hospital._ad_DoctorList)
+omniORB.registerType(DoctorList._NP_RepositoryId,_0_Hospital._ad_DoctorList,_0_Hospital._tc_DoctorList)
+del DoctorList
+_0_Hospital.Specialty=omniORB.newEmptyClass()
+class Specialty (omniORB.StructBase):
+    _NP_RepositoryId="IDL:Hospital/Specialty:1.0"
+    def __init__(self,id,name,active): self.id=id; self.name=name; self.active=active
+_0_Hospital.Specialty=Specialty
+_0_Hospital._d_Specialty=(omniORB.tcInternal.tv_struct,Specialty,Specialty._NP_RepositoryId,"Specialty","id",omniORB.tcInternal.tv_long,"name",(omniORB.tcInternal.tv_string,0),"active",omniORB.tcInternal.tv_boolean)
+_0_Hospital._tc_Specialty=omniORB.tcInternal.createTypeCode(_0_Hospital._d_Specialty)
+omniORB.registerType(Specialty._NP_RepositoryId,_0_Hospital._d_Specialty,_0_Hospital._tc_Specialty)
+del Specialty
+class SpecialtyList:
+    _NP_RepositoryId="IDL:Hospital/SpecialtyList:1.0"
+    def __init__(self,*args,**kw): raise RuntimeError("Cannot construct objects of this type.")
+_0_Hospital.SpecialtyList=SpecialtyList
+_0_Hospital._d_SpecialtyList=(omniORB.tcInternal.tv_sequence,omniORB.typeMapping["IDL:Hospital/Specialty:1.0"],0)
+_0_Hospital._ad_SpecialtyList=(omniORB.tcInternal.tv_alias,SpecialtyList._NP_RepositoryId,"SpecialtyList",_0_Hospital._d_SpecialtyList)
+_0_Hospital._tc_SpecialtyList=omniORB.tcInternal.createTypeCode(_0_Hospital._ad_SpecialtyList)
+omniORB.registerType(SpecialtyList._NP_RepositoryId,_0_Hospital._ad_SpecialtyList,_0_Hospital._tc_SpecialtyList)
+del SpecialtyList
+_0_Hospital._d_DirectoryService=(omniORB.tcInternal.tv_objref,"IDL:Hospital/DirectoryService:1.0","DirectoryService")
+omniORB.typeMapping["IDL:Hospital/DirectoryService:1.0"]=_0_Hospital._d_DirectoryService
+_0_Hospital.DirectoryService=omniORB.newEmptyClass()
+class DirectoryService:
+    _NP_RepositoryId=_0_Hospital._d_DirectoryService[1]
+    def __init__(self,*args,**kw): raise RuntimeError("Cannot construct objects of this type.")
+    _nil=CORBA.Object._nil
+_0_Hospital.DirectoryService=DirectoryService
+_0_Hospital._tc_DirectoryService=omniORB.tcInternal.createTypeCode(_0_Hospital._d_DirectoryService)
+omniORB.registerType(DirectoryService._NP_RepositoryId,_0_Hospital._d_DirectoryService,_0_Hospital._tc_DirectoryService)
+DirectoryService._d_listDoctors=((),(omniORB.typeMapping["IDL:Hospital/DoctorList:1.0"],),None)
+DirectoryService._d_listSpecialties=((),(omniORB.typeMapping["IDL:Hospital/SpecialtyList:1.0"],),None)
+class _objref_DirectoryService(CORBA.Object):
+    _NP_RepositoryId=DirectoryService._NP_RepositoryId
+    def __init__(self,obj): CORBA.Object.__init__(self,obj)
+    def listDoctors(self,*args): return self._obj.invoke("listDoctors",_0_Hospital.DirectoryService._d_listDoctors,args)
+    def listSpecialties(self,*args): return self._obj.invoke("listSpecialties",_0_Hospital.DirectoryService._d_listSpecialties,args)
+omniORB.registerObjref(DirectoryService._NP_RepositoryId,_objref_DirectoryService)
+_0_Hospital._objref_DirectoryService=_objref_DirectoryService
+del DirectoryService,_objref_DirectoryService
+__name__="Hospital__POA"
+class DirectoryService(PortableServer.Servant):
+    _NP_RepositoryId=_0_Hospital.DirectoryService._NP_RepositoryId
+    _omni_op_d={"listDoctors":_0_Hospital.DirectoryService._d_listDoctors,"listSpecialties":_0_Hospital.DirectoryService._d_listSpecialties}
+DirectoryService._omni_skeleton=DirectoryService
+_0_Hospital__POA.DirectoryService=DirectoryService
+omniORB.registerSkeleton(DirectoryService._NP_RepositoryId,DirectoryService)
+del DirectoryService
+__name__="Hospital"

@@ -1,4 +1,4 @@
-﻿from PySide6.QtCore import Qt, QDateTime, QEvent, QObject, QPoint, QPointF, QRect, QTimer
+from PySide6.QtCore import Qt, QDateTime, QEvent, QObject, QPoint, QPointF, QRect, QTimer
 from PySide6.QtGui import QColor, QFont, QKeySequence, QPainter, QPainterPath, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
@@ -182,6 +182,7 @@ class ReceptionDashboard(QWidget):
         self.show_page(0)
         self.load_patients()
         self.load_appointments()
+        self.load_directory()
 
     # ------------------------------------------------------------------
     # Shell (menu lateral + barra superior)
@@ -819,7 +820,7 @@ class ReceptionDashboard(QWidget):
         lay.addSpacing(ROW_GAP)
 
         self.appointment_doctor_input = self._combo()
-        self.appointment_doctor_input.addItems(["Seleccione o médico", "Dr. Carlos Silva", "Dra. Joana Paulo"])
+        self.appointment_doctor_input.addItem("Seleccione o médico")
         lay.addLayout(self._form_row("Médico", self.appointment_doctor_input, LABEL_W_SHORT))
 
         self._section_header(lay, "calendar", "Detalhes da consulta")
@@ -847,7 +848,7 @@ class ReceptionDashboard(QWidget):
         lay.addSpacing(ROW_GAP)
 
         self.appointment_specialty_input = self._combo("stethoscope", editable=True)
-        self.appointment_specialty_input.addItems(["Clínica Geral", "Cardiologia", "Pediatria", "Medicina Dentária", "Outra"])
+        self.appointment_specialty_input.setCurrentIndex(-1)
         self.appointment_specialty_input.setCurrentIndex(-1)
         self.appointment_specialty_input.lineEdit().setPlaceholderText("Ex.: Clínica Geral")
         lay.addWidget(self._stack("Especialidade", self.appointment_specialty_input))
@@ -978,6 +979,24 @@ class ReceptionDashboard(QWidget):
     # ------------------------------------------------------------------
     # Existing CORBA actions
     # ------------------------------------------------------------------
+    def load_directory(self):
+        try:
+            doctors = self.app.list_doctors()
+            specialties = self.app.list_specialties()
+            self.appointment_doctor_input.blockSignals(True)
+            self.appointment_doctor_input.clear()
+            self.appointment_doctor_input.addItem("Seleccione o médico")
+            for doctor in doctors:
+                self.appointment_doctor_input.addItem(doctor.fullName, doctor.id)
+            self.appointment_doctor_input.blockSignals(False)
+
+            self.appointment_specialty_input.clear()
+            for specialty in specialties:
+                self.appointment_specialty_input.addItem(specialty.name, specialty.id)
+            self.appointment_specialty_input.setCurrentIndex(-1)
+        except Exception as error:
+            self.show_error(f"Não foi possível carregar médicos e especialidades:\n{error}")
+
     def find_appointment_patient(self):
         patient_id_text = self.appointment_patient_id_input.text().strip()
 
