@@ -283,7 +283,11 @@ class DoctorDashboard(QWidget):
                 button = QPushButton(status.replace("_", " ").title())
                 button.setEnabled(False)
             button.setObjectName("tableActionButton")
+<<<<<<< HEAD
             button.setProperty("appointmentStatus", status)
+=======
+            button.setProperty("status", status)
+>>>>>>> 12c145f171ffe0787e037a4af9e0739781102c2d
             button.setCursor(Qt.PointingHandCursor)
             button.setFixedHeight(36)
             if status == "AGUARDANDO":
@@ -332,7 +336,7 @@ class DoctorDashboard(QWidget):
             self.app.update_appointment_status(appointment_id, "EM_ATENDIMENTO")
             self.load_patients(silent=True)
         except Exception as error:
-            QMessageBox.critical(self, "Erro", f"Não foi possível iniciar o atendimento:\n{error}")
+            QMessageBox.warning(self, "Atendimento em curso", str(error))
 
     def finish_appointment(self, appointment_id):
         try:
