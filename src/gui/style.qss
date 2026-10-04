@@ -427,6 +427,19 @@ QPushButton#secondaryButton {
 
 QPushButton#secondaryButton:hover { background: #f1f6f8; }
 
+QPushButton#dangerButton {
+    color: #ffffff;
+    background: #d94b4b;
+    border: none;
+    border-radius: 10px;
+    min-height: 44px;
+    padding: 0 20px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+QPushButton#dangerButton:hover { background: #bd3d3d; }
+
 /* ---------------- Cartões de estatística ---------------- */
 QFrame#statCard {
     background: #ffffff;
@@ -674,23 +687,6 @@ QPushButton#tableActionButton {
 
 QPushButton#tableActionButton:hover { background: #0b8853; }
 QPushButton#tableActionButton:disabled { background: #9fd6bf; }
-
-/* Estado da consulta: cada botão usa uma cor própria. */
-QPushButton#tableActionButton[status="AGENDADA"] { background: #1688e8; }
-QPushButton#tableActionButton[status="AGENDADA"]:hover { background: #0b72c8; }
-
-QPushButton#tableActionButton[status="AGUARDANDO"] { background: #7c5cc4; }
-QPushButton#tableActionButton[status="AGUARDANDO"]:hover { background: #6848ad; }
-
-QPushButton#tableActionButton[status="CHAMADA"] { background: #e6a11a; }
-QPushButton#tableActionButton[status="CHAMADA"]:hover { background: #c88a0d; }
-
-QPushButton#tableActionButton[status="EM_ATENDIMENTO"] { background: #0f9f64; }
-QPushButton#tableActionButton[status="EM_ATENDIMENTO"]:hover { background: #0b8853; }
-
-QPushButton#tableActionButton[status="CONCLUIDA"] { background: #607789; }
-QPushButton#tableActionButton[status="CANCELADA"] { background: #d14d4d; }
-QPushButton#tableActionButton[status="FALTOU"] { background: #8a6d3b; }
 
 QFrame#notifPopup {
     background: #ffffff;

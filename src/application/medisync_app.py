@@ -92,6 +92,19 @@ class MediSyncApp:
             patient_id
         )
 
+    def update_patient(
+        self,
+        patient_id: int,
+        full_name: str,
+        birth_date: str,
+        gender: str,
+        phone: str,
+    ) -> Any:
+        return self.patient_service.update_patient(
+            patient_id, full_name, birth_date, gender, phone
+        )
+
+
     # Fila
 
     def add_patient_to_queue(self, patient_id: int) -> None:
@@ -154,6 +167,9 @@ class MediSyncApp:
     def update_appointment_status(self, appointment_id: int, status: str) -> None:
         self.appointment_service.update_status(appointment_id, status)
 
+    def reschedule_appointment(self, appointment_id: int, appointment_date: str):
+        return self.appointment_service.reschedule(appointment_id, appointment_date)
+
     def list_appointments_for_doctor(self, doctor_name: str) -> list[Any]:
         """Consultas agendadas para o médico indicado (ignora Dr./Dra.)."""
         wanted = normalize_doctor_name(doctor_name)
@@ -174,6 +190,30 @@ class MediSyncApp:
 
     def list_specialties(self) -> list[Any]:
         return self.directory_service.list_specialties()
+
+    def list_all_doctors(self) -> list[Any]:
+        return self.directory_service.list_all_doctors()
+
+    def list_all_specialties(self) -> list[Any]:
+        return self.directory_service.list_all_specialties()
+
+    def create_doctor(self, full_name: str, specialty_id: int) -> Any:
+        return self.directory_service.create_doctor(full_name, specialty_id)
+
+    def update_doctor(self, doctor_id: int, full_name: str, specialty_id: int) -> Any:
+        return self.directory_service.update_doctor(doctor_id, full_name, specialty_id)
+
+    def set_doctor_active(self, doctor_id: int, active: bool) -> None:
+        self.directory_service.set_doctor_active(doctor_id, active)
+
+    def create_specialty(self, name: str) -> Any:
+        return self.directory_service.create_specialty(name)
+
+    def update_specialty(self, specialty_id: int, name: str) -> Any:
+        return self.directory_service.update_specialty(specialty_id, name)
+
+    def set_specialty_active(self, specialty_id: int, active: bool) -> None:
+        self.directory_service.set_specialty_active(specialty_id, active)
 
     # Notificações
 

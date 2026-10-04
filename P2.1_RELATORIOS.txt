@@ -1,0 +1,20 @@
+MediSync — Incremento P2.1: Relatórios e indicadores
+
+Implementado:
+- Filtro por data inicial/final.
+- Total de consultas no período.
+- Pacientes atendidos (consultas CONCLUIDA, distintos).
+- Faltas e cancelamentos.
+- Consultas por médico, com concluídas e faltas.
+- Consultas por especialidade, com concluídas e canceladas.
+- Fila actual e tempo médio de espera dos pacientes actualmente aguardando.
+- Contagem de notificações não lidas.
+
+Limitação do modelo actual:
+A tabela queue não guarda histórico de saída/chamada/tempo de espera por atendimento.
+Assim, o tempo médio apresentado é exclusivamente da fila actual; não é uma média histórica.
+Para cumprir esse indicador historicamente, o próximo incremento de auditoria/histórico deverá
+registar timestamps de entrada, chamada, início e conclusão do atendimento.
+
+A dependência jeteve-omniorb foi actualizada para 4.3.3.post7, mantendo a correcção do
+problema nativo observado no cliente.

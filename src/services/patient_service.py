@@ -30,3 +30,20 @@ class PatientService:
         service = self.corba_client.get_patient_service()
 
         return list(service.listPatients())
+    def update_patient(
+        self,
+        patient_id: int,
+        full_name: str,
+        birth_date: str,
+        gender: str,
+        phone: str,
+    ) -> Any:
+        service = self.corba_client.get_patient_service()
+
+        return service.updatePatient(
+            patient_id,
+            full_name,
+            birth_date,
+            gender,
+            phone,
+        )

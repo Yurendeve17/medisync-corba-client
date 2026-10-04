@@ -33,3 +33,7 @@ class AppointmentService:
     def update_status(self, appointment_id: int, status: str) -> None:
         service = self.corba_client.get_appointment_service()
         service.updateAppointmentStatus(appointment_id, status)
+
+    def reschedule(self, appointment_id: int, appointment_date: str) -> Any:
+        service = self.corba_client.get_appointment_service()
+        return service.rescheduleAppointment(appointment_id, appointment_date)

@@ -13,6 +13,7 @@ module Hospital {
         Patient registerPatient(in string fullName, in string birthDate, in string gender, in string phone);
         Patient findPatientById(in long id);
         PatientList listPatients();
+        Patient updatePatient(in long id, in string fullName, in string birthDate, in string gender, in string phone);
     };
 
     struct QueueEntry {
@@ -51,6 +52,14 @@ module Hospital {
     interface DirectoryService {
         DoctorList listDoctors();
         SpecialtyList listSpecialties();
+        DoctorList listAllDoctors();
+        SpecialtyList listAllSpecialties();
+        Doctor createDoctor(in string fullName, in long specialtyId);
+        Doctor updateDoctor(in long id, in string fullName, in long specialtyId);
+        void setDoctorActive(in long id, in boolean active);
+        Specialty createSpecialty(in string name);
+        Specialty updateSpecialty(in long id, in string name);
+        void setSpecialtyActive(in long id, in boolean active);
     };
 
     interface AppointmentService {
@@ -58,6 +67,7 @@ module Hospital {
         Appointment findAppointmentById(in long id);
         AppointmentList listAppointments();
         void updateAppointmentStatus(in long id, in string status);
+        Appointment rescheduleAppointment(in long id, in string appointmentDate);
     };
 
     struct Notification {

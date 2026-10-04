@@ -187,6 +187,7 @@ omniORB.registerType(PatientService._NP_RepositoryId, _0_Hospital._d_PatientServ
 PatientService._d_registerPatient = (((omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:Hospital/Patient:1.0"], ), None)
 PatientService._d_findPatientById = ((omniORB.tcInternal.tv_long, ), (omniORB.typeMapping["IDL:Hospital/Patient:1.0"], ), None)
 PatientService._d_listPatients = ((), (omniORB.typeMapping["IDL:Hospital/PatientList:1.0"], ), None)
+PatientService._d_updatePatient = (((omniORB.tcInternal.tv_long,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:Hospital/Patient:1.0"], ), None)
 
 # PatientService object reference
 class _objref_PatientService (CORBA.Object):
@@ -204,6 +205,9 @@ class _objref_PatientService (CORBA.Object):
     def listPatients(self, *args):
         return self._obj.invoke("listPatients", _0_Hospital.PatientService._d_listPatients, args)
 
+    def updatePatient(self, *args):
+        return self._obj.invoke("updatePatient", _0_Hospital.PatientService._d_updatePatient, args)
+
 omniORB.registerObjref(PatientService._NP_RepositoryId, _objref_PatientService)
 _0_Hospital._objref_PatientService = _objref_PatientService
 del PatientService, _objref_PatientService
@@ -214,7 +218,7 @@ class PatientService (PortableServer.Servant):
     _NP_RepositoryId = _0_Hospital.PatientService._NP_RepositoryId
 
 
-    _omni_op_d = {"registerPatient": _0_Hospital.PatientService._d_registerPatient, "findPatientById": _0_Hospital.PatientService._d_findPatientById, "listPatients": _0_Hospital.PatientService._d_listPatients}
+    _omni_op_d = {"registerPatient": _0_Hospital.PatientService._d_registerPatient, "findPatientById": _0_Hospital.PatientService._d_findPatientById, "listPatients": _0_Hospital.PatientService._d_listPatients, "updatePatient": _0_Hospital.PatientService._d_updatePatient}
 
 PatientService._omni_skeleton = PatientService
 _0_Hospital__POA.PatientService = PatientService
@@ -357,6 +361,7 @@ AppointmentService._d_scheduleAppointment = ((omniORB.tcInternal.tv_long, (omniO
 AppointmentService._d_findAppointmentById = ((omniORB.tcInternal.tv_long, ), (omniORB.typeMapping["IDL:Hospital/Appointment:1.0"], ), None)
 AppointmentService._d_listAppointments = ((), (omniORB.typeMapping["IDL:Hospital/AppointmentList:1.0"], ), None)
 AppointmentService._d_updateAppointmentStatus = ((omniORB.tcInternal.tv_long, (omniORB.tcInternal.tv_string,0)), (), None)
+AppointmentService._d_rescheduleAppointment = ((omniORB.tcInternal.tv_long, (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:Hospital/Appointment:1.0"], ), None)
 
 # AppointmentService object reference
 class _objref_AppointmentService (CORBA.Object):
@@ -377,6 +382,9 @@ class _objref_AppointmentService (CORBA.Object):
     def updateAppointmentStatus(self, *args):
         return self._obj.invoke("updateAppointmentStatus", _0_Hospital.AppointmentService._d_updateAppointmentStatus, args)
 
+    def rescheduleAppointment(self, *args):
+        return self._obj.invoke("rescheduleAppointment", _0_Hospital.AppointmentService._d_rescheduleAppointment, args)
+
 omniORB.registerObjref(AppointmentService._NP_RepositoryId, _objref_AppointmentService)
 _0_Hospital._objref_AppointmentService = _objref_AppointmentService
 del AppointmentService, _objref_AppointmentService
@@ -387,7 +395,7 @@ class AppointmentService (PortableServer.Servant):
     _NP_RepositoryId = _0_Hospital.AppointmentService._NP_RepositoryId
 
 
-    _omni_op_d = {"scheduleAppointment": _0_Hospital.AppointmentService._d_scheduleAppointment, "findAppointmentById": _0_Hospital.AppointmentService._d_findAppointmentById, "listAppointments": _0_Hospital.AppointmentService._d_listAppointments, "updateAppointmentStatus": _0_Hospital.AppointmentService._d_updateAppointmentStatus}
+    _omni_op_d = {"scheduleAppointment": _0_Hospital.AppointmentService._d_scheduleAppointment, "findAppointmentById": _0_Hospital.AppointmentService._d_findAppointmentById, "listAppointments": _0_Hospital.AppointmentService._d_listAppointments, "updateAppointmentStatus": _0_Hospital.AppointmentService._d_updateAppointmentStatus, "rescheduleAppointment": _0_Hospital.AppointmentService._d_rescheduleAppointment}
 
 AppointmentService._omni_skeleton = AppointmentService
 _0_Hospital__POA.AppointmentService = AppointmentService
@@ -496,7 +504,7 @@ _exported_modules = ( "Hospital", )
 
 # The end.
 
-# Incremento 03 - DirectoryService
+# Incremento 03 - DirectoryService + gestão de médicos/especialidades
 _0_Hospital.Doctor = omniORB.newEmptyClass()
 class Doctor (omniORB.StructBase):
     _NP_RepositoryId = "IDL:Hospital/Doctor:1.0"
@@ -546,18 +554,45 @@ _0_Hospital._tc_DirectoryService=omniORB.tcInternal.createTypeCode(_0_Hospital._
 omniORB.registerType(DirectoryService._NP_RepositoryId,_0_Hospital._d_DirectoryService,_0_Hospital._tc_DirectoryService)
 DirectoryService._d_listDoctors=((),(omniORB.typeMapping["IDL:Hospital/DoctorList:1.0"],),None)
 DirectoryService._d_listSpecialties=((),(omniORB.typeMapping["IDL:Hospital/SpecialtyList:1.0"],),None)
+DirectoryService._d_listAllDoctors=((),(omniORB.typeMapping["IDL:Hospital/DoctorList:1.0"],),None)
+DirectoryService._d_listAllSpecialties=((),(omniORB.typeMapping["IDL:Hospital/SpecialtyList:1.0"],),None)
+DirectoryService._d_createDoctor=((omniORB.tcInternal.tv_string,omniORB.tcInternal.tv_long),(omniORB.typeMapping["IDL:Hospital/Doctor:1.0"],),None)
+DirectoryService._d_updateDoctor=((omniORB.tcInternal.tv_long,omniORB.tcInternal.tv_string,omniORB.tcInternal.tv_long),(omniORB.typeMapping["IDL:Hospital/Doctor:1.0"],),None)
+DirectoryService._d_setDoctorActive=((omniORB.tcInternal.tv_long,omniORB.tcInternal.tv_boolean),(),None)
+DirectoryService._d_createSpecialty=((omniORB.tcInternal.tv_string,),(omniORB.typeMapping["IDL:Hospital/Specialty:1.0"],),None)
+DirectoryService._d_updateSpecialty=((omniORB.tcInternal.tv_long,omniORB.tcInternal.tv_string),(omniORB.typeMapping["IDL:Hospital/Specialty:1.0"],),None)
+DirectoryService._d_setSpecialtyActive=((omniORB.tcInternal.tv_long,omniORB.tcInternal.tv_boolean),(),None)
 class _objref_DirectoryService(CORBA.Object):
     _NP_RepositoryId=DirectoryService._NP_RepositoryId
     def __init__(self,obj): CORBA.Object.__init__(self,obj)
     def listDoctors(self,*args): return self._obj.invoke("listDoctors",_0_Hospital.DirectoryService._d_listDoctors,args)
     def listSpecialties(self,*args): return self._obj.invoke("listSpecialties",_0_Hospital.DirectoryService._d_listSpecialties,args)
+    def listAllDoctors(self,*args): return self._obj.invoke("listAllDoctors",_0_Hospital.DirectoryService._d_listAllDoctors,args)
+    def listAllSpecialties(self,*args): return self._obj.invoke("listAllSpecialties",_0_Hospital.DirectoryService._d_listAllSpecialties,args)
+    def createDoctor(self,*args): return self._obj.invoke("createDoctor",_0_Hospital.DirectoryService._d_createDoctor,args)
+    def updateDoctor(self,*args): return self._obj.invoke("updateDoctor",_0_Hospital.DirectoryService._d_updateDoctor,args)
+    def setDoctorActive(self,*args): return self._obj.invoke("setDoctorActive",_0_Hospital.DirectoryService._d_setDoctorActive,args)
+    def createSpecialty(self,*args): return self._obj.invoke("createSpecialty",_0_Hospital.DirectoryService._d_createSpecialty,args)
+    def updateSpecialty(self,*args): return self._obj.invoke("updateSpecialty",_0_Hospital.DirectoryService._d_updateSpecialty,args)
+    def setSpecialtyActive(self,*args): return self._obj.invoke("setSpecialtyActive",_0_Hospital.DirectoryService._d_setSpecialtyActive,args)
 omniORB.registerObjref(DirectoryService._NP_RepositoryId,_objref_DirectoryService)
 _0_Hospital._objref_DirectoryService=_objref_DirectoryService
 del DirectoryService,_objref_DirectoryService
 __name__="Hospital__POA"
 class DirectoryService(PortableServer.Servant):
     _NP_RepositoryId=_0_Hospital.DirectoryService._NP_RepositoryId
-    _omni_op_d={"listDoctors":_0_Hospital.DirectoryService._d_listDoctors,"listSpecialties":_0_Hospital.DirectoryService._d_listSpecialties}
+    _omni_op_d={
+        "listDoctors":_0_Hospital.DirectoryService._d_listDoctors,
+        "listSpecialties":_0_Hospital.DirectoryService._d_listSpecialties,
+        "listAllDoctors":_0_Hospital.DirectoryService._d_listAllDoctors,
+        "listAllSpecialties":_0_Hospital.DirectoryService._d_listAllSpecialties,
+        "createDoctor":_0_Hospital.DirectoryService._d_createDoctor,
+        "updateDoctor":_0_Hospital.DirectoryService._d_updateDoctor,
+        "setDoctorActive":_0_Hospital.DirectoryService._d_setDoctorActive,
+        "createSpecialty":_0_Hospital.DirectoryService._d_createSpecialty,
+        "updateSpecialty":_0_Hospital.DirectoryService._d_updateSpecialty,
+        "setSpecialtyActive":_0_Hospital.DirectoryService._d_setSpecialtyActive,
+    }
 DirectoryService._omni_skeleton=DirectoryService
 _0_Hospital__POA.DirectoryService=DirectoryService
 omniORB.registerSkeleton(DirectoryService._NP_RepositoryId,DirectoryService)
