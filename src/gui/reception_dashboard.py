@@ -1,8 +1,9 @@
+import re
 from PySide6.QtCore import Qt, QDateTime, QEvent, QObject, QPoint, QPointF, QRect, QTimer
-from PySide6.QtGui import QColor, QFont, QKeySequence, QPainter, QPainterPath, QPixmap, QShortcut
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QMessageBox,
+    QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QMessageBox, QHeaderView,
     QStackedWidget, QDateEdit, QToolButton, QSizePolicy, QMenu,
     QScrollArea, QGraphicsDropShadowEffect, QDialog, QDialogButtonBox,
 )
@@ -17,7 +18,7 @@ SIDEBAR_W = 232
 NOTIF_POLL_MS = 8000     # de quanto em quanto tempo a recepção verifica novas chamadas
 TOPBAR_H = 72
 PAGE_MAX_W = 1000        # largura máxima do conteúdo (cabeçalho e cartão alinhados)
-TABLE_MAX_W = 1200
+TABLE_MAX_W = 1040
 FIELD_H = 42             # altura única de todos os campos
 ROW_GAP = 10             # espaço vertical entre linhas do formulário
 COL_GAP = 16             # espaço horizontal entre etiqueta e campo
@@ -178,7 +179,6 @@ class ReceptionDashboard(QWidget):
         self._build_shell()
         self._build_pages()
         self._build_notifications()
-        QShortcut(QKeySequence("Ctrl+K"), self, activated=self.search_input.setFocus)
         self.show_page(0)
         self.load_patients()
         self.load_appointments()
@@ -285,28 +285,7 @@ class ReceptionDashboard(QWidget):
         h.setContentsMargins(28, 0, 28, 0)
         h.setSpacing(10)
 
-        self.search_box = QFrame()
-        self.search_box.setObjectName("searchBox")
-        self.search_box.setFixedHeight(42)
-        self.search_box.setMinimumWidth(300)
-        self.search_box.setMaximumWidth(460)
-        sb = QHBoxLayout(self.search_box)
-        sb.setContentsMargins(14, 0, 10, 0)
-        sb.setSpacing(10)
-        search_icon = QLabel()
-        search_icon.setPixmap(pixmap("search", "#6b8194", 18))
-        search_icon.setFixedSize(18, 18)
-        self.search_input = QLineEdit()
-        self.search_input.setObjectName("globalSearch")
-        self.search_input.setPlaceholderText("Pesquisar paciente, consulta, médico...")
-        self.search_input.installEventFilter(self)
-        kbd = QLabel("Ctrl + K")
-        kbd.setObjectName("kbdHint")
-        sb.addWidget(search_icon)
-        sb.addWidget(self.search_input, 1)
-        sb.addWidget(kbd)
-        h.addWidget(self.search_box, 1)
-        h.addStretch(0)
+        h.addStretch(1)
 
         self.bell_button = QToolButton()
         self.bell_button.setObjectName("topIconButton")
@@ -322,11 +301,6 @@ class ReceptionDashboard(QWidget):
         self.notification_badge.hide()
         h.addWidget(self.bell_button)
 
-        theme_button = QToolButton()
-        theme_button.setObjectName("topIconButton")
-        theme_button.setIcon(qicon("sun", "#466277", 20))
-        theme_button.setFixedSize(40, 40)
-        h.addWidget(theme_button)
 
         h.addSpacing(6)
         separator = QFrame()
@@ -377,10 +351,6 @@ class ReceptionDashboard(QWidget):
         return header
 
     def eventFilter(self, obj, event):
-        # realce verde da caixa de pesquisa quando o campo tem foco
-        if obj is getattr(self, "search_input", None) and event.type() in (QEvent.FocusIn, QEvent.FocusOut):
-            self.search_box.setProperty("focused", event.type() == QEvent.FocusIn)
-            _repolish(self.search_box)
         return super().eventFilter(obj, event)
 
     def _open_profile_menu(self):
@@ -502,7 +472,7 @@ class ReceptionDashboard(QWidget):
         self.content_stack.addWidget(self._patients_page())
         self.content_stack.addWidget(self._appointments_page())
         self.content_stack.addWidget(self._doctors_page())
-        self.content_stack.addWidget(self._reports_page())
+        self.content_stack.addWidget(self._placeholder_page("bar-chart", "Relatórios", "Indicadores e relatórios do hospital."))
         self.content_stack.addWidget(self._placeholder_page("settings", "Configurações", "Preferências do sistema."))
 
     def _scaffold(self, max_width=PAGE_MAX_W):
@@ -944,9 +914,18 @@ class ReceptionDashboard(QWidget):
         search_row.addWidget(refresh)
         lay.addLayout(search_row)
 
-        self.patients_table = self._table(["ID", "Nome completo", "Nascimento", "Género", "Telefone"])
+        self.patients_table = self._table([
+            "ID", "Nome completo", "Nascimento", "Género", "Telefone",
+            "Morada", "Bairro", "Cidade"
+        ])
         self.patients_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.patients_table.doubleClicked.connect(self.edit_selected_patient)
+        header = self.patients_table.horizontalHeader()
+        for column in range(8):
+            header.setSectionResizeMode(column, QHeaderView.Interactive)
+        widths = [45, 150, 92, 82, 105, 230, 105, 95]
+        for column, width in enumerate(widths):
+            self.patients_table.setColumnWidth(column, width)
         lay.addWidget(self.patients_table)
         col.addWidget(card, 1)
         return scroll
@@ -963,31 +942,36 @@ class ReceptionDashboard(QWidget):
         actions.addStretch()
         confirm_arrival = QPushButton("Confirmar presença")
         confirm_arrival.setObjectName("successButton")
-        confirm_arrival.setFixedHeight(44)
+        confirm_arrival.setFixedHeight(40)
+        confirm_arrival.setMinimumWidth(130)
         confirm_arrival.clicked.connect(self.confirm_selected_arrival)
         actions.addWidget(confirm_arrival)
 
         add_queue = QPushButton("Adicionar à fila")
         add_queue.setObjectName("successButton")
-        add_queue.setFixedHeight(44)
+        add_queue.setFixedHeight(40)
+        add_queue.setMinimumWidth(120)
         add_queue.clicked.connect(self.add_selected_appointment_to_queue)
         actions.addWidget(add_queue)
 
         reschedule = QPushButton("Reagendar")
         reschedule.setObjectName("secondaryButton")
-        reschedule.setFixedHeight(44)
+        reschedule.setFixedHeight(40)
+        reschedule.setMinimumWidth(95)
         reschedule.clicked.connect(self.reschedule_selected_appointment)
         actions.addWidget(reschedule)
 
         cancel = QPushButton("Cancelar consulta")
         cancel.setObjectName("dangerButton")
-        cancel.setFixedHeight(44)
+        cancel.setFixedHeight(40)
+        cancel.setMinimumWidth(125)
         cancel.clicked.connect(self.cancel_selected_appointment)
         actions.addWidget(cancel)
 
         refresh = QPushButton("Actualizar")
         refresh.setObjectName("secondaryButton")
-        refresh.setFixedHeight(44)
+        refresh.setFixedHeight(40)
+        refresh.setMinimumWidth(90)
         refresh.clicked.connect(self.load_appointments)
         actions.addWidget(refresh)
         lay.addLayout(actions)
@@ -995,7 +979,7 @@ class ReceptionDashboard(QWidget):
         filters = QHBoxLayout()
         self.appointment_search_input = self._field("Pesquisar ID, médico ou especialidade...")
         self.appointment_search_input.textChanged.connect(self.filter_appointments_table)
-        filters.addWidget(self.appointment_search_input, 2)
+        filters.addWidget(self.appointment_search_input, 3)
 
         self.appointment_status_filter = self._combo()
         self.appointment_status_filter.addItems([
@@ -1003,7 +987,7 @@ class ReceptionDashboard(QWidget):
             "CHAMADA", "EM_ATENDIMENTO", "CONCLUIDA", "CANCELADA", "FALTOU"
         ])
         self.appointment_status_filter.currentIndexChanged.connect(self.filter_appointments_table)
-        filters.addWidget(self.appointment_status_filter, 1)
+        filters.addWidget(self.appointment_status_filter, 2)
 
         self.appointment_specialty_filter = self._combo()
         self.appointment_specialty_filter.addItem("Todas as especialidades")
@@ -1016,7 +1000,14 @@ class ReceptionDashboard(QWidget):
         filters.addWidget(self.appointment_doctor_filter, 1)
         lay.addLayout(filters)
 
-        self.appointments_table = self._table(["ID", "Paciente", "Médico", "Data e hora", "Especialidade", "Estado"])
+        self.appointments_table = self._table([
+            "ID", "Paciente", "Médico", "Data e hora", "Especialidade", "Estado"
+        ])
+        appointment_header = self.appointments_table.horizontalHeader()
+        for column in range(6):
+            appointment_header.setSectionResizeMode(column, QHeaderView.Interactive)
+        for column, width in enumerate([48, 70, 150, 145, 145, 120]):
+            self.appointments_table.setColumnWidth(column, width)
         lay.addWidget(self.appointments_table)
         col.addWidget(card, 1)
         return scroll
@@ -1161,197 +1152,6 @@ class ReceptionDashboard(QWidget):
         try:self.app.set_specialty_active(int(specialty.id),not bool(specialty.active));self.load_doctor_management()
         except Exception as error:self.show_error(f"Não foi possível alterar o estado da especialidade:\n{error}")
 
-    def _reports_page(self):
-        scroll, col = self._scaffold(TABLE_MAX_W)
-        col.addWidget(self._page_header(
-            "bar-chart",
-            "Relatórios e indicadores",
-            "Consulte o movimento das consultas e os principais indicadores operacionais do período seleccionado.",
-            art="calendar",
-        ))
-
-        filter_card, filter_lay = self._card((20, 18, 20, 18))
-        filter_lay.setSpacing(10)
-        row = QHBoxLayout()
-        row.setSpacing(12)
-        self.report_start_date = QDateEdit(QDateTime.currentDateTime().date().addDays(-30))
-        self.report_start_date.setCalendarPopup(True)
-        self.report_start_date.setDisplayFormat("dd/MM/yyyy")
-        self.report_start_date.setFixedHeight(FIELD_H)
-        self._guard(self.report_start_date)
-        self.report_end_date = QDateEdit(QDateTime.currentDateTime().date())
-        self.report_end_date.setCalendarPopup(True)
-        self.report_end_date.setDisplayFormat("dd/MM/yyyy")
-        self.report_end_date.setFixedHeight(FIELD_H)
-        self._guard(self.report_end_date)
-        row.addWidget(self._stack("Data inicial", self.report_start_date), 1)
-        row.addWidget(self._stack("Data final", self.report_end_date), 1)
-        refresh = QPushButton("  Actualizar relatório")
-        refresh.setObjectName("successButton")
-        refresh.setIcon(qicon("bar-chart", "#ffffff", 18))
-        refresh.setFixedHeight(FIELD_H)
-        refresh.clicked.connect(self.load_reports)
-        row.addWidget(self._stack("", refresh), 1)
-        filter_lay.addLayout(row)
-        col.addWidget(filter_card)
-
-        cards = QHBoxLayout()
-        cards.setSpacing(12)
-        self.report_cards = []
-        for title, icon in (
-            ("Consultas", "calendar"),
-            ("Pacientes atendidos", "users"),
-            ("Faltas", "users"),
-            ("Cancelamentos", "calendar"),
-        ):
-            card = QFrame()
-            card.setObjectName("statCard")
-            lay = QHBoxLayout(card)
-            lay.setContentsMargins(16, 14, 16, 14)
-            lay.setSpacing(12)
-            icon_label = QLabel()
-            icon_label.setPixmap(pixmap(icon, "#0c9a5e", 22))
-            icon_label.setFixedSize(34, 34)
-            icon_label.setAlignment(Qt.AlignCenter)
-            texts = QVBoxLayout()
-            texts.setSpacing(2)
-            value = QLabel("0")
-            value.setObjectName("statValue")
-            label = QLabel(title)
-            label.setObjectName("statLabel")
-            texts.addWidget(value)
-            texts.addWidget(label)
-            lay.addWidget(icon_label)
-            lay.addLayout(texts, 1)
-            cards.addWidget(card, 1)
-            self.report_cards.append(value)
-        col.addLayout(cards)
-
-        tables = QHBoxLayout()
-        tables.setSpacing(16)
-
-        doctor_card, doctor_lay = self._card((20, 18, 20, 18))
-        doctor_lay.addWidget(self._section("stethoscope", "Consultas por médico"))
-        doctor_lay.addSpacing(10)
-        self.report_doctor_table = self._table(["Médico", "Consultas", "Concluídas", "Faltas"])
-        doctor_lay.addWidget(self.report_doctor_table)
-        tables.addWidget(doctor_card, 1)
-
-        specialty_card, specialty_lay = self._card((20, 18, 20, 18))
-        specialty_lay.addWidget(self._section("stethoscope", "Consultas por especialidade"))
-        specialty_lay.addSpacing(10)
-        self.report_specialty_table = self._table(["Especialidade", "Consultas", "Concluídas", "Canceladas"])
-        specialty_lay.addWidget(self.report_specialty_table)
-        tables.addWidget(specialty_card, 1)
-        col.addLayout(tables)
-
-        operational_card, operational_lay = self._card((20, 18, 20, 18))
-        operational_lay.addWidget(self._section("bar-chart", "Indicadores operacionais"))
-        operational_lay.addSpacing(10)
-        self.report_operational_label = QLabel("A carregar...")
-        self.report_operational_label.setObjectName("cardDescription")
-        self.report_operational_label.setWordWrap(True)
-        operational_lay.addWidget(self.report_operational_label)
-        col.addWidget(operational_card)
-        col.addStretch(1)
-        QTimer.singleShot(0, self.load_reports)
-        return scroll
-
-    def _report_appointments_in_range(self):
-        start = self.report_start_date.date().toString("yyyy-MM-dd")
-        end = self.report_end_date.date().toString("yyyy-MM-dd")
-        if start > end:
-            raise ValueError("A data inicial não pode ser posterior à data final.")
-        result = []
-        for appointment in getattr(self, "_appointments_cache", []):
-            value = str(getattr(appointment, "appointmentDate", ""))
-            if len(value) >= 10 and start <= value[:10] <= end:
-                result.append(appointment)
-        return result
-
-    @staticmethod
-    def _report_counts(items, key):
-        counts = Counter()
-        for item in items:
-            value = str(getattr(item, key, "") or "Não informado")
-            counts[value] += 1
-        return counts
-
-    def load_reports(self):
-        if not hasattr(self, "report_start_date"):
-            return
-        try:
-            if not getattr(self, "_appointments_cache", None):
-                self._appointments_cache = list(self.app.list_appointments())
-            appointments = self._report_appointments_in_range()
-            statuses = Counter(str(getattr(a, "status", "AGENDADA")) for a in appointments)
-            completed_patients = len({int(a.patientId) for a in appointments if str(getattr(a, "status", "")) == "CONCLUIDA"})
-
-            values = [
-                len(appointments),
-                completed_patients,
-                statuses.get("FALTOU", 0),
-                statuses.get("CANCELADA", 0),
-            ]
-            for label, value in zip(self.report_cards, values):
-                label.setText(str(value))
-
-            by_doctor = {}
-            for a in appointments:
-                doctor = str(getattr(a, "doctor", "") or "Não informado")
-                row = by_doctor.setdefault(doctor, Counter())
-                row["total"] += 1
-                row[str(getattr(a, "status", "AGENDADA"))] += 1
-            self.report_doctor_table.setRowCount(len(by_doctor))
-            for row, doctor in enumerate(sorted(by_doctor, key=str.casefold)):
-                data = by_doctor[doctor]
-                vals = [doctor, data["total"], data["CONCLUIDA"], data["FALTOU"]]
-                for col_idx, value in enumerate(vals):
-                    self.report_doctor_table.setItem(row, col_idx, QTableWidgetItem(str(value)))
-            self.report_doctor_table.resizeColumnsToContents()
-
-            by_specialty = {}
-            for a in appointments:
-                specialty = str(getattr(a, "specialty", "") or "Não informado")
-                row = by_specialty.setdefault(specialty, Counter())
-                row["total"] += 1
-                row[str(getattr(a, "status", "AGENDADA"))] += 1
-            self.report_specialty_table.setRowCount(len(by_specialty))
-            for row, specialty in enumerate(sorted(by_specialty, key=str.casefold)):
-                data = by_specialty[specialty]
-                vals = [specialty, data["total"], data["CONCLUIDA"], data["CANCELADA"]]
-                for col_idx, value in enumerate(vals):
-                    self.report_specialty_table.setItem(row, col_idx, QTableWidgetItem(str(value)))
-            self.report_specialty_table.resizeColumnsToContents()
-
-            queue = list(self.app.list_queue())
-            unread_notifications = 0
-            try:
-                unread_notifications = sum(1 for n in self.app.list_notifications() if not bool(getattr(n, "isRead", False)))
-            except Exception:
-                pass
-            current_wait_minutes = []
-            now = datetime.now()
-            for entry in queue:
-                added = str(getattr(entry, "addedAt", ""))
-                try:
-                    dt = datetime.strptime(added[:19], "%Y-%m-%d %H:%M:%S")
-                    current_wait_minutes.append(max(0, int((now - dt).total_seconds() // 60)))
-                except Exception:
-                    continue
-            avg_wait = (sum(current_wait_minutes) / len(current_wait_minutes)) if current_wait_minutes else 0
-            wait_text = f"{avg_wait:.0f} min" if current_wait_minutes else "sem pacientes em espera"
-            self.report_operational_label.setText(
-                f"Fila actual: <b>{len(queue)}</b> paciente(s) · "
-                f"Tempo médio de espera dos pacientes actualmente na fila: <b>{wait_text}</b> · "
-                f"Notificações não lidas: <b>{unread_notifications}</b><br><br>"
-                "Nota: o modelo actual da base de dados guarda a entrada na fila, mas não guarda um histórico "
-                "de todas as filas ao longo do tempo. Por isso, o indicador acima é calculado sobre a fila actual "
-                "e não representa uma média histórica diária."
-            )
-        except Exception as error:
-            self.show_error(f"Não foi possível gerar os relatórios:\n{error}")
-
     def _placeholder_page(self, icon_name, title, subtitle):
         scroll, col = self._scaffold()
         col.addWidget(self._page_header(icon_name, title, subtitle))
@@ -1435,23 +1235,45 @@ class ReceptionDashboard(QWidget):
         gender_index = self.gender_input.currentIndex()
         phone = self.phone_input.text().strip()
 
-        if not full_name:
-            self.show_error("Introduza o nome completo do paciente.")
+        address = self.address_input.text().strip()
+        neighborhood = self.neighborhood_input.text().strip()
+        city = self.city_input.text().strip()
+
+        if not re.fullmatch(r"[A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ'’.-]+)+", full_name):
+            self.show_error("Introduza o nome completo correctamente, por exemplo: António Manuel.")
             return
-        if not birth_date:
-            self.show_error("Introduza a data de nascimento.")
+        try:
+            parsed_birth = QDateTime.fromString(birth_date, "yyyy-MM-dd")
+            if not parsed_birth.isValid():
+                raise ValueError
+            if parsed_birth.date() >= QDateTime.currentDateTime().date():
+                self.show_error("A data de nascimento deve ser uma data válida no passado.")
+                return
+        except ValueError:
+            self.show_error("A data de nascimento deve estar no formato AAAA-MM-DD.")
             return
         if gender_index == 0:
             self.show_error("Seleccione o género do paciente.")
             return
-        if not phone:
-            self.show_error("Introduza o contacto telefónico.")
+        digits = "".join(ch for ch in phone if ch.isdigit())
+        if not re.fullmatch(r"[+\d\s()\-]+", phone) or len(digits) < 7 or len(digits) > 15:
+            self.show_error("Introduza um contacto telefónico válido.")
+            return
+        if len(address) < 5:
+            self.show_error("Introduza uma morada válida.")
+            return
+        if len(neighborhood) < 2:
+            self.show_error("Introduza o bairro.")
+            return
+        if len(city) < 2 or any(ch.isdigit() for ch in city):
+            self.show_error("Introduza uma cidade válida.")
             return
 
         try:
             patient = self.app.register_patient(
                 full_name, birth_date,
-                self.gender_input.currentText(), phone
+                self.gender_input.currentText(), phone,
+                address, neighborhood, city
             )
             QMessageBox.information(
                 self, "Sucesso",
@@ -1609,7 +1431,6 @@ class ReceptionDashboard(QWidget):
             ]
             for column, value in enumerate(values):
                 self.appointments_table.setItem(row, column, QTableWidgetItem(str(value)))
-        self.appointments_table.resizeColumnsToContents()
 
     def _selected_appointment_data(self):
         if not hasattr(self, "appointments_table"):
@@ -1764,14 +1585,25 @@ class ReceptionDashboard(QWidget):
                 if query in str(patient.id).casefold()
                 or query in str(patient.fullName).casefold()
                 or query in str(patient.phone).casefold()
+                or query in str(getattr(patient, "address", "")).casefold()
+                or query in str(getattr(patient, "neighborhood", "")).casefold()
+                or query in str(getattr(patient, "city", "")).casefold()
             ]
 
         self.patients_table.setRowCount(len(patients))
         for row, patient in enumerate(patients):
-            values = [patient.id, patient.fullName, patient.birthDate, patient.gender, patient.phone]
+            values = [
+                patient.id,
+                patient.fullName,
+                patient.birthDate,
+                patient.gender,
+                patient.phone,
+                getattr(patient, "address", ""),
+                getattr(patient, "neighborhood", ""),
+                getattr(patient, "city", ""),
+            ]
             for column, value in enumerate(values):
                 self.patients_table.setItem(row, column, QTableWidgetItem(str(value)))
-        self.patients_table.resizeColumnsToContents()
 
     def edit_selected_patient(self, *_args):
         if not hasattr(self, "patients_table"):
@@ -1822,6 +1654,18 @@ class ReceptionDashboard(QWidget):
         phone_input.setText(patient.phone)
         form.addLayout(self._form_row("Telefone", phone_input, LABEL_W_LONG))
 
+        address_input = self._field("Morada")
+        address_input.setText(getattr(patient, "address", ""))
+        form.addLayout(self._form_row("Morada", address_input, LABEL_W_LONG))
+
+        neighborhood_input = self._field("Bairro")
+        neighborhood_input.setText(getattr(patient, "neighborhood", ""))
+        form.addLayout(self._form_row("Bairro", neighborhood_input, LABEL_W_LONG))
+
+        city_input = self._field("Cidade")
+        city_input.setText(getattr(patient, "city", ""))
+        form.addLayout(self._form_row("Cidade", city_input, LABEL_W_LONG))
+
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.accepted.connect(dialog.accept)
         buttons.rejected.connect(dialog.reject)
@@ -1834,13 +1678,27 @@ class ReceptionDashboard(QWidget):
         birth_date = birth_input.text().strip()
         gender = gender_input.currentText().strip()
         phone = phone_input.text().strip()
+        address = address_input.text().strip()
+        neighborhood = neighborhood_input.text().strip()
+        city = city_input.text().strip()
 
-        if not full_name or not birth_date or gender == "Seleccione o género" or not phone:
-            self.show_error("Preencha todos os campos obrigatórios do paciente.")
+        if (
+            len(full_name.split()) < 2
+            or not birth_date
+            or gender == "Seleccione o género"
+            or len("".join(ch for ch in phone if ch.isdigit())) < 7
+            or len(address) < 5
+            or len(neighborhood) < 2
+            or len(city) < 2
+        ):
+            self.show_error("Preencha correctamente todos os campos do paciente.")
             return
 
         try:
-            self.app.update_patient(patient.id, full_name, birth_date, gender, phone)
+            self.app.update_patient(
+                patient.id, full_name, birth_date, gender, phone,
+                address, neighborhood, city
+            )
             QMessageBox.information(self, "Paciente actualizado", f"Os dados do paciente #{patient.id} foram actualizados.")
             self.load_patients()
         except Exception as error:

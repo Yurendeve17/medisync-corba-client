@@ -141,15 +141,18 @@ _0_Hospital.Patient = omniORB.newEmptyClass()
 class Patient (omniORB.StructBase):
     _NP_RepositoryId = "IDL:Hospital/Patient:1.0"
 
-    def __init__(self, id, fullName, birthDate, gender, phone):
+    def __init__(self, id, fullName, birthDate, gender, phone, address, neighborhood, city):
         self.id = id
         self.fullName = fullName
         self.birthDate = birthDate
         self.gender = gender
         self.phone = phone
+        self.address = address
+        self.neighborhood = neighborhood
+        self.city = city
 
 _0_Hospital.Patient = Patient
-_0_Hospital._d_Patient  = (omniORB.tcInternal.tv_struct, Patient, Patient._NP_RepositoryId, "Patient", "id", omniORB.tcInternal.tv_long, "fullName", (omniORB.tcInternal.tv_string,0), "birthDate", (omniORB.tcInternal.tv_string,0), "gender", (omniORB.tcInternal.tv_string,0), "phone", (omniORB.tcInternal.tv_string,0))
+_0_Hospital._d_Patient  = (omniORB.tcInternal.tv_struct, Patient, Patient._NP_RepositoryId, "Patient", "id", omniORB.tcInternal.tv_long, "fullName", (omniORB.tcInternal.tv_string,0), "birthDate", (omniORB.tcInternal.tv_string,0), "gender", (omniORB.tcInternal.tv_string,0), "phone", (omniORB.tcInternal.tv_string,0), "address", (omniORB.tcInternal.tv_string,0), "neighborhood", (omniORB.tcInternal.tv_string,0), "city", (omniORB.tcInternal.tv_string,0))
 _0_Hospital._tc_Patient = omniORB.tcInternal.createTypeCode(_0_Hospital._d_Patient)
 omniORB.registerType(Patient._NP_RepositoryId, _0_Hospital._d_Patient, _0_Hospital._tc_Patient)
 del Patient
@@ -184,10 +187,10 @@ _0_Hospital._tc_PatientService = omniORB.tcInternal.createTypeCode(_0_Hospital._
 omniORB.registerType(PatientService._NP_RepositoryId, _0_Hospital._d_PatientService, _0_Hospital._tc_PatientService)
 
 # PatientService operations and attributes
-PatientService._d_registerPatient = (((omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:Hospital/Patient:1.0"], ), None)
+PatientService._d_registerPatient = (((omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:Hospital/Patient:1.0"], ), None)
 PatientService._d_findPatientById = ((omniORB.tcInternal.tv_long, ), (omniORB.typeMapping["IDL:Hospital/Patient:1.0"], ), None)
 PatientService._d_listPatients = ((), (omniORB.typeMapping["IDL:Hospital/PatientList:1.0"], ), None)
-PatientService._d_updatePatient = (((omniORB.tcInternal.tv_long,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:Hospital/Patient:1.0"], ), None)
+PatientService._d_updatePatient = (((omniORB.tcInternal.tv_long,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:Hospital/Patient:1.0"], ), None)
 
 # PatientService object reference
 class _objref_PatientService (CORBA.Object):

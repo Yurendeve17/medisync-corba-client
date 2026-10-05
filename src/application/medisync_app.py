@@ -76,12 +76,18 @@ class MediSyncApp:
         birth_date: str,
         gender: str,
         phone: str,
+        address: str,
+        neighborhood: str,
+        city: str,
     ) -> Any:
         return self.patient_service.register_patient(
             full_name,
             birth_date,
             gender,
             phone,
+            address,
+            neighborhood,
+            city,
         )
 
     def list_patients(self) -> list[Any]:
@@ -99,9 +105,19 @@ class MediSyncApp:
         birth_date: str,
         gender: str,
         phone: str,
+        address: str,
+        neighborhood: str,
+        city: str,
     ) -> Any:
         return self.patient_service.update_patient(
-            patient_id, full_name, birth_date, gender, phone
+            patient_id,
+            full_name,
+            birth_date,
+            gender,
+            phone,
+            address,
+            neighborhood,
+            city,
         )
 
 

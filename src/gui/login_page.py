@@ -15,7 +15,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMenu,
     QMessageBox,
     QPushButton,
     QToolButton,
@@ -345,12 +344,6 @@ class LoginPage(QWidget):
         outer.setContentsMargins(40, 28, 32, 36)
         outer.setSpacing(0)
 
-        # seletor de idioma
-        top_row = QHBoxLayout()
-        top_row.addStretch()
-        top_row.addWidget(self._build_language_button())
-        outer.addLayout(top_row)
-
         outer.addStretch(1)
 
         holder = QHBoxLayout()
@@ -361,23 +354,6 @@ class LoginPage(QWidget):
 
         outer.addStretch(1)
         return panel
-
-    def _build_language_button(self):
-        self.lang_button = QToolButton()
-        self.lang_button.setObjectName("loginLang")
-        self.lang_button.setIcon(qicon("globe", "#16324d", 20))
-        self.lang_button.setIconSize(QSize(20, 20))
-        self.lang_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.lang_button.setPopupMode(QToolButton.InstantPopup)
-        self.lang_button.setCursor(Qt.PointingHandCursor)
-
-        menu = QMenu(self.lang_button)
-        menu.setObjectName("profileMenu")
-        for code, label in (("pt", "Português"), ("en", "English")):
-            action = menu.addAction(label)
-            action.triggered.connect(lambda _checked=False, c=code: self.set_language(c))
-        self.lang_button.setMenu(menu)
-        return self.lang_button
 
     def _build_form(self):
         form = QWidget()
@@ -455,30 +431,6 @@ class LoginPage(QWidget):
         layout.addWidget(self.login_button)
         layout.addSpacing(22)
 
-        # separador "ou"
-        divider = QHBoxLayout()
-        divider.setSpacing(16)
-        left_rule, right_rule = QFrame(), QFrame()
-        for rule in (left_rule, right_rule):
-            rule.setObjectName("loginRule")
-            rule.setFixedHeight(1)
-        self.or_label = QLabel()
-        self.or_label.setObjectName("loginOr")
-        divider.addWidget(left_rule, 1)
-        divider.addWidget(self.or_label)
-        divider.addWidget(right_rule, 1)
-        layout.addLayout(divider)
-        layout.addSpacing(22)
-
-        # criar conta
-        self.create_button = QPushButton()
-        self.create_button.setObjectName("loginSecondary")
-        self.create_button.setIcon(qicon("user-plus", "#0b8f68", 20))
-        self.create_button.setIconSize(QSize(20, 20))
-        self.create_button.setCursor(Qt.PointingHandCursor)
-        self.create_button.clicked.connect(self.on_create_account)
-        layout.addWidget(self.create_button)
-
         return form
 
     # ------------------------------------------------------------------
@@ -495,7 +447,6 @@ class LoginPage(QWidget):
     def retranslate(self):
         t = self._t
 
-        self.lang_button.setText(f" {self.lang.upper()}")
         self.brand_sub.setText(t("brand_sub"))
         self.headline.setText(
             f'{t("headline_1")}<br><span style="color:{ACCENT};">{t("headline_2")}</span>'
@@ -514,8 +465,6 @@ class LoginPage(QWidget):
         self.password_input.setPlaceholderText(t("pass_ph"))
         self.forgot_button.setText(t("forgot"))
         self.login_button.setText(f"  {t('enter')}")
-        self.or_label.setText(t("or"))
-        self.create_button.setText(f"  {t('create')}")
 
     # ------------------------------------------------------------------
     # Ações
@@ -536,10 +485,6 @@ class LoginPage(QWidget):
     def on_forgot_password(self):
         self.forgot_password_requested.emit()
         QMessageBox.information(self, "MediSync", self._t("forgot_msg"))
-
-    def on_create_account(self):
-        self.register_requested.emit()
-        QMessageBox.information(self, "MediSync", self._t("create_msg"))
 
     def login(self):
         username = self.username_input.text().strip()

@@ -1,2 +1,2 @@
-jeteve-omniorb==4.3.3.post7
+jeteve-omniorb==4.3.3.post3
 PySide6

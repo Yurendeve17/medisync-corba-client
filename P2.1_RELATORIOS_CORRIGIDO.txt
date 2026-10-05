@@ -1,0 +1,8 @@
+MediSync P2.1 corrigido
+
+- Preserva a versão actual com a barra superior de pesquisa removida.
+- Preserva endereço/bairro/cidade dos pacientes.
+- CORBA IDL sincronizado com o servidor que suporta esses campos.
+- OmniORB actualizado para 4.3.3.post7.
+- Relatórios ligados a listAppointments/listQueue/listNotifications.
+- Inclui consultas por dia, médico, especialidade e indicadores operacionais.
