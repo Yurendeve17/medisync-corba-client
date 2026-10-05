@@ -4,6 +4,11 @@ from PySide6.QtSvg import QSvgRenderer
 
 
 ICONS = {
+    "check": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4 4L19 7" fill="none" stroke="{color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    "x": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="{color}" stroke-width="2.2" stroke-linecap="round"/></svg>',
+    "alert": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 3l10 18H2L12 3Z" fill="none" stroke="{color}" stroke-width="2" stroke-linejoin="round"/><path d="M12 9v5M12 17v.5" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round"/></svg>',
+    "info": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="{color}" stroke-width="2"/><path d="M12 10v6M12 7.5v.5" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round"/></svg>',
+
     "heart-pulse": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 12h4l2-7 4 14 2-7h6" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     "home": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10H5V10M9 20v-6h6v6" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     "users": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4" fill="none" stroke="{color}" stroke-width="2"/><path d="M3 21v-2a6 6 0 0 1 12 0v2M16 4a4 4 0 0 1 0 7M18 14a6 6 0 0 1 3 5v2" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round"/></svg>',

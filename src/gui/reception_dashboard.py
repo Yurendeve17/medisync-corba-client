@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (
 
 from .icons import pixmap, qicon, illustration
 from .notifications import NotificationPopup, Toast, notification_text
+from .profile_dialog import ProfileDialog
+from .result_dialog import ResultDialog
 
 # ----------------------------------------------------------------------
 # Medidas do layout (um único sítio para manter tudo harmónico)
@@ -452,15 +454,15 @@ class ReceptionDashboard(QWidget):
         username = getattr(user, "username", "")
         role = getattr(user, "role", "")
         role_label = {"RECEPTION": "Recepção", "DOCTOR": "Médico"}.get(role, role or "Utilizador")
-        QMessageBox.information(
-            self,
-            "Meu perfil",
-            f"Nome: {full_name}\nUtilizador: {username}\nPerfil: {role_label}"
-        )
+        ProfileDialog(user, self).exec()
 
     def request_logout(self):
         if self.logout_callback:
             self.logout_callback()
+
+    def accept_result_navigation(self):
+        # Mantido como ponto de extensão para acções futuras dos diálogos de resultado.
+        self.load_patients()
 
     # ------------------------------------------------------------------
     # Estrutura comum das páginas
@@ -1275,9 +1277,17 @@ class ReceptionDashboard(QWidget):
                 self.gender_input.currentText(), phone,
                 address, neighborhood, city
             )
-            QMessageBox.information(
-                self, "Sucesso",
-                f"Paciente registado com sucesso.\n\nID atribuído: {patient.id}"
+            ResultDialog.success(
+                self,
+                "Paciente registado",
+                "O paciente foi adicionado ao sistema com sucesso.",
+                details=[
+                    ("ID do paciente", f"#{patient.id}"),
+                    ("Nome", patient.fullName),
+                    ("Telefone", patient.phone),
+                    ("Cidade", getattr(patient, "city", "—")),
+                ],
+                primary_text="Fechar",
             )
             self.clear_form()
             self.load_patients()
@@ -1313,9 +1323,19 @@ class ReceptionDashboard(QWidget):
             appointment = self.app.schedule_appointment(
                 int(patient_id_text), doctor, appointment_date, specialty
             )
-            QMessageBox.information(
-                self, "Sucesso",
-                f"Consulta agendada com sucesso.\n\nID da consulta: {appointment.id}"
+            ResultDialog.success(
+                self,
+                "Consulta agendada",
+                "A consulta foi criada com sucesso.",
+                details=[
+                    ("Consulta", f"#{appointment.id}"),
+                    ("Paciente", patient_id_text),
+                    ("Médico", doctor),
+                    ("Especialidade", specialty),
+                    ("Data e hora", appointment_date),
+                    ("Estado", "AGENDADA"),
+                ],
+                primary_text="Fechar",
             )
             self.clear_appointment_form()
             self.load_appointments()
@@ -1348,11 +1368,15 @@ class ReceptionDashboard(QWidget):
 
         try:
             self.app.update_appointment_status(appointment_id, "CONFIRMADA")
-            QMessageBox.information(
+            ResultDialog.success(
                 self,
                 "Presença confirmada",
-                f"A presença do paciente na consulta #{appointment_id} foi confirmada.\n\n"
-                "Agora use 'Adicionar à fila' para colocar a consulta na fila de atendimento.",
+                "A chegada do paciente foi registada.",
+                details=[
+                    ("Consulta", f"#{appointment_id}"),
+                    ("Estado", "CONFIRMADA"),
+                    ("Próximo passo", "Adicionar à fila"),
+                ],
             )
             self.load_appointments()
         except Exception as error:
@@ -1498,7 +1522,12 @@ class ReceptionDashboard(QWidget):
         new_date = date_input.date().toString("yyyy-MM-dd") + " " + time_input.currentText()
         try:
             self.app.reschedule_appointment(appointment_id, new_date)
-            QMessageBox.information(self, "Consulta reagendada", f"A consulta #{appointment_id} foi reagendada para {new_date}.")
+            ResultDialog.success(
+                self,
+                "Consulta reagendada",
+                "A data e hora da consulta foram actualizadas.",
+                details=[("Consulta", f"#{appointment_id}"), ("Nova data e hora", new_date)],
+            )
             self.load_appointments()
         except Exception as error:
             self.show_error(f"Não foi possível reagendar a consulta #{appointment_id}:\n{error}")
@@ -1522,7 +1551,12 @@ class ReceptionDashboard(QWidget):
 
         try:
             self.app.update_appointment_status(appointment_id, "CANCELADA")
-            QMessageBox.information(self, "Consulta cancelada", f"A consulta #{appointment_id} foi cancelada.")
+            ResultDialog.success(
+                self,
+                "Consulta cancelada",
+                "A consulta foi cancelada com sucesso.",
+                details=[("Consulta", f"#{appointment_id}"), ("Estado", "CANCELADA")],
+            )
             self.load_appointments()
         except Exception as error:
             self.show_error(f"Não foi possível cancelar a consulta #{appointment_id}:\n{error}")
@@ -1553,10 +1587,11 @@ class ReceptionDashboard(QWidget):
 
         try:
             self.app.add_appointment_to_queue(appointment_id)
-            QMessageBox.information(
+            ResultDialog.success(
                 self,
-                "Consulta adicionada à fila",
-                f"A consulta #{appointment_id} foi adicionada à fila.\n\nO estado passou para AGUARDANDO.",
+                "Paciente adicionado à fila",
+                "A consulta entrou na fila de atendimento.",
+                details=[("Consulta", f"#{appointment_id}"), ("Estado", "AGUARDANDO")],
             )
             self.load_appointments()
         except Exception as error:
@@ -1699,7 +1734,12 @@ class ReceptionDashboard(QWidget):
                 patient.id, full_name, birth_date, gender, phone,
                 address, neighborhood, city
             )
-            QMessageBox.information(self, "Paciente actualizado", f"Os dados do paciente #{patient.id} foram actualizados.")
+            ResultDialog.success(
+                self,
+                "Paciente actualizado",
+                "Os dados do paciente foram actualizados com sucesso.",
+                details=[("Paciente", f"#{patient.id}"), ("Nome", patient.fullName), ("Cidade", getattr(patient, "city", "—"))],
+            )
             self.load_patients()
         except Exception as error:
             self.show_error(f"Não foi possível actualizar o paciente:\n{error}")

@@ -758,3 +758,28 @@ QPushButton#tableActionButton[appointmentStatus="EM_ATENDIMENTO"] { background: 
 QPushButton#tableActionButton[appointmentStatus="CONCLUIDA"] { background: #7f8c8d; color: white; }
 QPushButton#tableActionButton[appointmentStatus="CANCELADA"] { background: #c0392b; color: white; }
 QPushButton#tableActionButton[appointmentStatus="FALTOU"] { background: #795548; color: white; }
+
+/* ==========================================================
+   Diálogos de perfil e resultados
+   ========================================================== */
+QDialog#resultDialog, QDialog#profileDialog {
+    background: #ffffff;
+}
+
+QFrame#resultDetails,
+QFrame#profileInfoCard {
+    background: #f6fafb;
+    border: 1px solid #e1ebef;
+    border-radius: 12px;
+}
+
+QFrame#profileSecurityCard {
+    background: #f1faf6;
+    border: 1px solid #d8eee3;
+    border-radius: 12px;
+}
+
+QDialog#resultDialog QPushButton,
+QDialog#profileDialog QPushButton {
+    min-height: 44px;
+}

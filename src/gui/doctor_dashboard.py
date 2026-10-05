@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QMenu,
-    QMessageBox,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -17,6 +16,8 @@ from PySide6.QtWidgets import (
 )
 
 from .icons import qicon
+from .profile_dialog import ProfileDialog
+from .result_dialog import ResultDialog
 from application.medisync_app import normalize_doctor_name
 
 REFRESH_MS = 20_000
@@ -213,15 +214,7 @@ class DoctorDashboard(QWidget):
             return
         role = getattr(user, "role", "")
         role_label = ROLE_LABELS.get(role, role or "Utilizador")
-        QMessageBox.information(
-            self,
-            "Meu perfil",
-            (
-                f"Nome: {getattr(user, 'fullName', '')}\n"
-                f"Utilizador: {getattr(user, 'username', '')}\n"
-                f"Perfil: {role_label}"
-            ),
-        )
+        ProfileDialog(user, self).exec()
 
     def request_logout(self):
         if self.logout_callback:
@@ -244,10 +237,10 @@ class DoctorDashboard(QWidget):
             names = {p.id: p.fullName for p in self.app.list_patients()}
         except Exception as error:
             if not silent:
-                QMessageBox.critical(
+                ResultDialog.error(
                     self,
-                    "Erro",
-                    f"Não foi possível carregar os seus pacientes:\n{type(error).__name__}: {error}",
+                    "Não foi possível carregar os pacientes",
+                    f"O sistema não conseguiu carregar as consultas deste médico.\n\n{type(error).__name__}: {error}",
                 )
             return
 
@@ -307,14 +300,11 @@ class DoctorDashboard(QWidget):
             self.app.update_appointment_status(appointment.id, "CHAMADA")
             self.app.call_patient(appointment, patient_name)
         except Exception as error:
-            QMessageBox.critical(
+            ResultDialog.error(
                 self,
-                "Erro",
-                (
-                    "Não foi possível chamar o paciente.\n"
-                    "Confirme que o serviço de notificações está activo no servidor.\n\n"
-                    f"{type(error).__name__}: {error}"
-                ),
+                "Não foi possível chamar o paciente",
+                "Confirme que o serviço de notificações está activo no servidor.\n\n"
+                f"{type(error).__name__}: {error}",
             )
             return
         finally:
@@ -326,20 +316,28 @@ class DoctorDashboard(QWidget):
             f"✓ {patient_name} foi chamado às {datetime.now():%H:%M}. Estado: CHAMADA. A recepção foi notificada."
         )
         self.call_status_label.show()
+        ResultDialog.success(
+            self,
+            "Paciente chamado",
+            "O paciente foi chamado e a recepção foi notificada.",
+            details=[("Paciente", patient_name), ("Consulta", f"#{appointment.id}"), ("Estado", "CHAMADA")],
+        )
 
     def start_appointment(self, appointment_id):
         try:
             self.app.update_appointment_status(appointment_id, "EM_ATENDIMENTO")
             self.load_patients(silent=True)
+            ResultDialog.success(self, "Atendimento iniciado", "O atendimento foi iniciado com sucesso.", details=[("Consulta", f"#{appointment_id}"), ("Estado", "EM_ATENDIMENTO")])
         except Exception as error:
-            QMessageBox.critical(self, "Erro", f"Não foi possível iniciar o atendimento:\n{error}")
+            ResultDialog.error(self, "Não foi possível iniciar o atendimento", str(error))
 
     def finish_appointment(self, appointment_id):
         try:
             self.app.update_appointment_status(appointment_id, "CONCLUIDA")
             self.load_patients(silent=True)
+            ResultDialog.success(self, "Atendimento concluído", "O atendimento foi concluído e o estado foi guardado.", details=[("Consulta", f"#{appointment_id}"), ("Estado", "CONCLUIDA")])
         except Exception as error:
-            QMessageBox.critical(self, "Erro", f"Não foi possível concluir o atendimento:\n{error}")
+            ResultDialog.error(self, "Não foi possível concluir o atendimento", str(error))
 
     # ------------------------------------------------------------------
     # Fila de atendimento (já existente)
@@ -381,10 +379,10 @@ class DoctorDashboard(QWidget):
                 flush=True,
             )
 
-            QMessageBox.critical(
+            ResultDialog.error(
                 self,
-                "Erro",
-                f"Não foi possível carregar a fila:\n{type(error).__name__}: {error}",
+                "Não foi possível carregar a fila",
+                f"O sistema não conseguiu carregar a fila.\n\n{type(error).__name__}: {error}",
             )
 
     def call_next_patient(self):
@@ -396,7 +394,7 @@ class DoctorDashboard(QWidget):
             entry = self.app.get_next_queue_entry_for_doctor(doctor_name)
 
             if getattr(entry, "id", 0) == 0:
-                QMessageBox.information(
+                ResultDialog.info(
                     self,
                     "Fila vazia",
                     "Não existem pacientes aguardando na sua fila.",
@@ -412,20 +410,21 @@ class DoctorDashboard(QWidget):
 
             self.load_queue()
 
-            QMessageBox.information(
+            ResultDialog.success(
                 self,
                 "Paciente chamado",
-                f"{entry.patientName} (#{entry.patientId}) foi chamado para atendimento."
-                + (
-                    f"\nConsulta #{entry.appointmentId}. Estado: CHAMADA. A recepção foi notificada."
-                    if entry.appointmentId
-                    else ""
-                ),
+                "O próximo paciente foi chamado para atendimento.",
+                details=[
+                    ("Paciente", f"{entry.patientName} (#{entry.patientId})"),
+                    ("Consulta", f"#{entry.appointmentId}" if entry.appointmentId else "Sem consulta"),
+                    ("Estado", "CHAMADA"),
+                    ("Recepção", "Notificada" if entry.appointmentId else "—"),
+                ],
             )
 
         except Exception as error:
-            QMessageBox.critical(
+            ResultDialog.error(
                 self,
-                "Erro",
-                f"Não foi possível chamar o próximo paciente:\n{error}",
+                "Não foi possível chamar o próximo paciente",
+                str(error),
             )
