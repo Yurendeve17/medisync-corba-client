@@ -78,6 +78,18 @@ class CorbaClient:
             Hospital.AuthService,
         )
 
+    def get_user_service(self):
+        return self._resolve_service("UserService", Hospital.UserService)
+
+    def get_report_service(self):
+        return self._resolve_service("ReportService", Hospital.ReportService)
+
+    def get_doctor_service(self):
+        return self._resolve_service("DoctorService", Hospital.DoctorService)
+
+    def get_admin_service(self):
+        return self._resolve_service("AdminService", Hospital.AdminService)
+
     def get_patient_service(self):
         return self._resolve_service(
             "PatientService",

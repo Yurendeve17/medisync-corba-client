@@ -17,7 +17,9 @@ from .icons import pixmap
 
 def notification_text(notification):
     patient = getattr(notification, "patientName", "") or f"#{notification.patientId}"
-    return f"{notification.doctor} chamou o paciente {patient}"
+    room = getattr(notification, "clinicRoom", "")
+    suffix = f" · Consultório {room}" if room else ""
+    return f"{notification.doctor} chamou o paciente {patient}{suffix}"
 
 
 def format_time(created_at):

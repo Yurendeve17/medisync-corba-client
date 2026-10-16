@@ -49,6 +49,7 @@ x11vnc \
     -display :99 \
     -forever \
     -shared \
+    -noxdamage \
     -nopw \
     -rfbport 5900 \
     -listen 0.0.0.0 &

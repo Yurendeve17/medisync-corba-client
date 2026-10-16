@@ -37,3 +37,9 @@ class AppointmentService:
     def reschedule(self, appointment_id: int, appointment_date: str) -> Any:
         service = self.corba_client.get_appointment_service()
         return service.rescheduleAppointment(appointment_id, appointment_date)
+
+    def reschedule_with_reason(self, appointment_id: int, appointment_date: str, reason: str = "") -> Any:
+        return self.corba_client.get_appointment_service().rescheduleAppointmentWithReason(appointment_id, appointment_date, reason)
+
+    def cancel(self, appointment_id: int, reason: str = "") -> None:
+        self.corba_client.get_appointment_service().cancelAppointment(appointment_id, reason)

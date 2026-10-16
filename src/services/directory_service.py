@@ -10,26 +10,32 @@ class DirectoryService:
     def list_specialties(self) -> list[Any]:
         return list(self.corba_client.get_directory_service().listSpecialties())
 
-    def list_all_doctors(self) -> list[Any]:
-        return list(self.corba_client.get_directory_service().listAllDoctors())
+    def list_all_doctors(self, token: str) -> list[Any]:
+        return list(self.corba_client.get_directory_service().listAllDoctors(token))
 
-    def list_all_specialties(self) -> list[Any]:
-        return list(self.corba_client.get_directory_service().listAllSpecialties())
+    def list_all_specialties(self, token: str) -> list[Any]:
+        return list(self.corba_client.get_directory_service().listAllSpecialties(token))
 
-    def create_doctor(self, full_name: str, specialty_id: int) -> Any:
-        return self.corba_client.get_directory_service().createDoctor(full_name, specialty_id)
+    def create_doctor(self, token: str, full_name: str, specialty_id: int) -> Any:
+        return self.corba_client.get_directory_service().createDoctor(token, full_name, specialty_id)
 
-    def update_doctor(self, doctor_id: int, full_name: str, specialty_id: int) -> Any:
-        return self.corba_client.get_directory_service().updateDoctor(doctor_id, full_name, specialty_id)
+    def update_doctor(self, token: str, doctor_id: int, full_name: str, specialty_id: int) -> Any:
+        return self.corba_client.get_directory_service().updateDoctor(token, doctor_id, full_name, specialty_id)
 
-    def set_doctor_active(self, doctor_id: int, active: bool) -> None:
-        self.corba_client.get_directory_service().setDoctorActive(doctor_id, active)
+    def set_doctor_active(self, token: str, doctor_id: int, active: bool) -> None:
+        self.corba_client.get_directory_service().setDoctorActive(token, doctor_id, active)
 
-    def create_specialty(self, name: str) -> Any:
-        return self.corba_client.get_directory_service().createSpecialty(name)
+    def set_doctor_room(self, token: str, doctor_id: int, room: str) -> None:
+        self.corba_client.get_directory_service().setDoctorRoom(token, doctor_id, room)
 
-    def update_specialty(self, specialty_id: int, name: str) -> Any:
-        return self.corba_client.get_directory_service().updateSpecialty(specialty_id, name)
+    def set_doctor_schedule(self, token: str, doctor_id: int, days: str, start: str, end: str) -> None:
+        self.corba_client.get_directory_service().setDoctorSchedule(token, doctor_id, days, start, end)
 
-    def set_specialty_active(self, specialty_id: int, active: bool) -> None:
-        self.corba_client.get_directory_service().setSpecialtyActive(specialty_id, active)
+    def create_specialty(self, token: str, name: str) -> Any:
+        return self.corba_client.get_directory_service().createSpecialty(token, name)
+
+    def update_specialty(self, token: str, specialty_id: int, name: str) -> Any:
+        return self.corba_client.get_directory_service().updateSpecialty(token, specialty_id, name)
+
+    def set_specialty_active(self, token: str, specialty_id: int, active: bool) -> None:
+        self.corba_client.get_directory_service().setSpecialtyActive(token, specialty_id, active)

@@ -3,6 +3,7 @@ from PySide6.QtGui import QPainter, QPixmap
 from PySide6.QtWidgets import (
     QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton,
     QVBoxLayout, QWidget,
+    QInputDialog, QLineEdit, QMessageBox,
 )
 
 from .icons import pixmap
@@ -56,9 +57,10 @@ def _avatar(initials, size=72):
 class ProfileDialog(QDialog):
     """Perfil do utilizador autenticado. Os dados vêm do User retornado pelo CORBA."""
 
-    def __init__(self, user, parent=None):
+    def __init__(self, user, parent=None, app=None):
         super().__init__(parent)
         self.user = user
+        self.app = app
         self.setModal(True)
         self.setWindowTitle("Meu perfil")
         self.setMinimumWidth(620)
@@ -132,6 +134,11 @@ class ProfileDialog(QDialog):
         root.addWidget(security)
 
         actions = QHBoxLayout()
+        change_password = QPushButton("Alterar palavra-passe")
+        change_password.setObjectName("secondaryButton")
+        change_password.setFixedHeight(44)
+        change_password.clicked.connect(self.change_password)
+        actions.addWidget(change_password)
         actions.addStretch(1)
         close = QPushButton("Fechar")
         close.setObjectName("secondaryButton")
@@ -140,6 +147,17 @@ class ProfileDialog(QDialog):
         close.clicked.connect(self.accept)
         actions.addWidget(close)
         root.addLayout(actions)
+
+    def change_password(self):
+        if self.app is None: return
+        current, ok = QInputDialog.getText(self, "Alterar palavra-passe", "Palavra-passe actual:", QLineEdit.Password)
+        if not ok: return
+        new, ok = QInputDialog.getText(self, "Alterar palavra-passe", "Nova palavra-passe (mínimo 10 caracteres):", QLineEdit.Password)
+        if not ok: return
+        try:
+            self.app.change_own_password(current, new)
+            QMessageBox.information(self, "Palavra-passe alterada", "A palavra-passe foi actualizada.")
+        except Exception as error: QMessageBox.critical(self, "Erro", str(error))
 
     @staticmethod
     def _add_field(grid, row, column, label, value):

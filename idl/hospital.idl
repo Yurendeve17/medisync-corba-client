@@ -1,121 +1,150 @@
-package mz.hospital.server;
+module Hospital {
 
-import Hospital.DirectoryServicePOA;
-import Hospital.Doctor;
-import Hospital.Specialty;
-import mz.hospital.server.db.DatabaseManager;
+    interface HelloService {
+        string sayHello();
+    };
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
+    struct User { long id; string username; string fullName; string role; string sessionToken; };
+    interface AuthService { User login(in string username, in string password); void logout(in string sessionToken); };
 
-public class DirectoryServiceImpl extends DirectoryServicePOA {
+    struct Patient { long id; string fullName; string birthDate; string gender; string phone; string address; string neighborhood; string city; };
+    typedef sequence<Patient> PatientList;
+    interface PatientService {
+        Patient registerPatient(in string fullName, in string birthDate, in string gender, in string phone, in string address, in string neighborhood, in string city);
+        Patient findPatientById(in long id);
+        PatientList listPatients();
+        PatientList searchPatients(in string query);
+        boolean hasPossibleDuplicate(in string fullName, in string birthDate, in string phone, in long excludeId);
+        Patient updatePatient(in long id, in string fullName, in string birthDate, in string gender, in string phone, in string address, in string neighborhood, in string city);
+    };
 
-    @Override public Doctor[] listDoctors() {
-        return listDoctors(false);
-    }
+    struct QueueEntry {
+        long id;
+        long appointmentId;
+        long patientId;
+        string patientName;
+        string doctor;
+        string addedAt;
+        string status;
+        long priority;
+    };
+    typedef sequence<QueueEntry> QueueEntryList;
 
-    @Override public Specialty[] listSpecialties() {
-        return listSpecialties(false);
-    }
+    interface QueueService {
+        // Compatibilidade legada; novos clientes devem usar appointmentId.
+        void addToQueue(in long patientId);
+        void addAppointmentToQueue(in long appointmentId);
+        void addAppointmentToQueueWithPriority(in long appointmentId, in long priority);
+        QueueEntry addWalkInToQueue(in long patientId, in string doctor, in string specialty, in long priority);
+        void withdrawQueueEntry(in long queueEntryId, in string reason);
+        long getNextPatient();
+        long peekNextPatient();
+        QueueEntry getNextQueueEntry();
+        QueueEntry peekNextQueueEntry();
+        QueueEntry getNextQueueEntryForDoctor(in string doctor);
+        QueueEntry callNextQueueEntryForDoctor(in string sessionToken, in string doctor);
+        double estimatedWaitMinutesForQueueEntry(in long queueEntryId);
+        QueueEntry peekNextQueueEntryForDoctor(in string doctor);
+        QueueEntryList listQueue();
+        long getQueueSize();
+    };
 
-    @Override public Doctor[] listAllDoctors() {
-        return listDoctors(true);
-    }
+    struct Appointment {
+        long id; long patientId; string patientName; string doctor; string appointmentDate; string specialty; string status;
+    };
+    typedef sequence<Appointment> AppointmentList;
+    struct Doctor { long id; string fullName; string specialty; boolean active; string clinicRoom; string workingDays; string startTime; string endTime; };
+    typedef sequence<Doctor> DoctorList;
+    struct Specialty { long id; string name; boolean active; };
+    typedef sequence<Specialty> SpecialtyList;
+    interface DirectoryService {
+        DoctorList listDoctors();
+        SpecialtyList listSpecialties();
+        DoctorList listAllDoctors(in string sessionToken);
+        SpecialtyList listAllSpecialties(in string sessionToken);
+        Doctor createDoctor(in string sessionToken, in string fullName, in long specialtyId);
+        Doctor updateDoctor(in string sessionToken, in long id, in string fullName, in long specialtyId);
+        void setDoctorActive(in string sessionToken, in long id, in boolean active);
+        void setDoctorRoom(in string sessionToken, in long id, in string clinicRoom);
+        void setDoctorSchedule(in string sessionToken, in long id, in string workingDays, in string startTime, in string endTime);
+        Specialty createSpecialty(in string sessionToken, in string name);
+        Specialty updateSpecialty(in string sessionToken, in long id, in string name);
+        void setSpecialtyActive(in string sessionToken, in long id, in boolean active);
+    };
 
-    @Override public Specialty[] listAllSpecialties() {
-        return listSpecialties(true);
-    }
+    interface AppointmentService {
+        Appointment scheduleAppointment(in long patientId, in string doctor, in string appointmentDate, in string specialty);
+        Appointment findAppointmentById(in long id);
+        AppointmentList listAppointments();
+        void updateAppointmentStatus(in long id, in string status);
+        Appointment rescheduleAppointment(in long id, in string appointmentDate);
+        Appointment rescheduleAppointmentWithReason(in long id, in string appointmentDate, in string reason);
+        void cancelAppointment(in long id, in string reason);
+    };
 
-    private Doctor[] listDoctors(boolean includeInactive) {
-        List<Doctor> list = new ArrayList<>();
-        String sql = "SELECT d.id,d.full_name,s.name,d.active FROM doctors d JOIN specialties s ON s.id=d.specialty_id "
-                + (includeInactive ? "" : "WHERE d.active=1 AND s.active=1 ")
-                + "ORDER BY d.full_name";
-        try (Connection c=DatabaseManager.getConnection(); PreparedStatement ps=c.prepareStatement(sql); ResultSet r=ps.executeQuery()) {
-            while(r.next()) list.add(new Doctor(r.getInt(1),r.getString(2),r.getString(3),r.getInt(4)!=0));
-            return list.toArray(new Doctor[0]);
-        } catch(Exception e) { throw new RuntimeException("Erro ao listar médicos.",e); }
-    }
+    struct Notification {
+        long id; long appointmentId; long patientId; string patientName; string doctor; string createdAt; boolean isRead; string clinicRoom;
+    };
+    typedef sequence<Notification> NotificationList;
+    interface NotificationService {
+        Notification callPatient(in long appointmentId, in long patientId, in string patientName, in string doctor);
+        NotificationList listNotifications();
+        void markAsRead(in long id);
+        void markAllAsRead();
+    };
 
-    private Specialty[] listSpecialties(boolean includeInactive) {
-        List<Specialty> list = new ArrayList<>();
-        String sql="SELECT id,name,active FROM specialties " + (includeInactive ? "" : "WHERE active=1 ") + "ORDER BY name";
-        try(Connection c=DatabaseManager.getConnection(); PreparedStatement ps=c.prepareStatement(sql); ResultSet r=ps.executeQuery()) {
-            while(r.next()) list.add(new Specialty(r.getInt(1),r.getString(2),r.getInt(3)!=0));
-            return list.toArray(new Specialty[0]);
-        } catch(Exception e) { throw new RuntimeException("Erro ao listar especialidades.",e); }
-    }
+    struct ManagedUser { long id; string username; string fullName; string role; boolean active; };
+    typedef sequence<ManagedUser> ManagedUserList;
+    interface UserService {
+        ManagedUserList listUsers(in string sessionToken);
+        ManagedUser createUser(in string sessionToken, in string username, in string fullName, in string role, in string initialPassword);
+        void setUserActive(in string sessionToken, in long id, in boolean active);
+        void resetPassword(in string sessionToken, in long id, in string newPassword);
+        void changePassword(in string sessionToken, in string currentPassword, in string newPassword);
+    };
 
-    @Override public Doctor createDoctor(String fullName, int specialtyId) {
-        String name = cleanName(fullName);
-        validateName(name, "O nome do médico é obrigatório.");
-        try(Connection c=DatabaseManager.getConnection()) {
-            ensureSpecialtyExists(c, specialtyId, true);
-            try(PreparedStatement ps=c.prepareStatement("INSERT INTO doctors(full_name,specialty_id,active) VALUES(?,?,1)", Statement.RETURN_GENERATED_KEYS)) {
-                ps.setString(1,name); ps.setInt(2,specialtyId); ps.executeUpdate();
-                try(ResultSet keys=ps.getGeneratedKeys()) { if(keys.next()) return findDoctor(c, keys.getInt(1)); }
-            }
-            throw new RuntimeException("Não foi possível obter o ID do médico.");
-        } catch(java.sql.SQLException e) {
-            if(e.getMessage()!=null && e.getMessage().toLowerCase().contains("unique")) throw new IllegalArgumentException("Já existe um médico com esse nome.");
-            throw new RuntimeException("Erro ao cadastrar médico.",e);
-        } catch(RuntimeException e){ throw e; } catch(Exception e){ throw new RuntimeException("Erro ao cadastrar médico.",e); }
-    }
-
-    @Override public Doctor updateDoctor(int id, String fullName, int specialtyId) {
-        String name=cleanName(fullName); validateName(name,"O nome do médico é obrigatório.");
-        try(Connection c=DatabaseManager.getConnection()) {
-            Doctor current=findDoctor(c,id);
-            if(current==null) throw new IllegalArgumentException("Médico não encontrado.");
-            ensureSpecialtyExists(c,specialtyId,true);
-            c.setAutoCommit(false);
-            try(PreparedStatement ps=c.prepareStatement("UPDATE doctors SET full_name=?, specialty_id=? WHERE id=?")){ ps.setString(1,name);ps.setInt(2,specialtyId);ps.setInt(3,id);ps.executeUpdate(); }
-            if(!current.fullName.equals(name)) {
-                try(PreparedStatement ps=c.prepareStatement("UPDATE appointments SET doctor=? WHERE doctor=?")){ ps.setString(1,name);ps.setString(2,current.fullName);ps.executeUpdate(); }
-            }
-            c.commit(); return findDoctor(c,id);
-        } catch(java.sql.SQLException e){ throw new RuntimeException("Erro ao atualizar médico.",e); }
-    }
-
-    @Override public void setDoctorActive(int id, boolean active) {
-        try(Connection c=DatabaseManager.getConnection(); PreparedStatement ps=c.prepareStatement("UPDATE doctors SET active=? WHERE id=?")){
-            ps.setInt(1,active?1:0);ps.setInt(2,id);
-            if(ps.executeUpdate()==0) throw new IllegalArgumentException("Médico não encontrado.");
-        } catch(RuntimeException e){throw e;} catch(Exception e){throw new RuntimeException("Erro ao alterar estado do médico.",e);}
-    }
-
-    @Override public Specialty createSpecialty(String name) {
-        String value=cleanName(name); validateName(value,"O nome da especialidade é obrigatório.");
-        try(Connection c=DatabaseManager.getConnection(); PreparedStatement ps=c.prepareStatement("INSERT INTO specialties(name,active) VALUES(?,1)",Statement.RETURN_GENERATED_KEYS)){
-            ps.setString(1,value);ps.executeUpdate();
-            try(ResultSet keys=ps.getGeneratedKeys()){if(keys.next())return findSpecialty(c,keys.getInt(1));}
-            throw new RuntimeException("Não foi possível obter o ID da especialidade.");
-        } catch(java.sql.SQLException e){if(e.getMessage()!=null&&e.getMessage().toLowerCase().contains("unique"))throw new IllegalArgumentException("Já existe uma especialidade com esse nome.");throw new RuntimeException("Erro ao cadastrar especialidade.",e);}
-    }
-
-    @Override public Specialty updateSpecialty(int id, String name) {
-        String value=cleanName(name); validateName(value,"O nome da especialidade é obrigatório.");
-        try(Connection c=DatabaseManager.getConnection()){
-            Specialty current=findSpecialty(c,id); if(current==null)throw new IllegalArgumentException("Especialidade não encontrada.");
-            try(PreparedStatement ps=c.prepareStatement("UPDATE specialties SET name=? WHERE id=?")){ps.setString(1,value);ps.setInt(2,id);ps.executeUpdate();}
-            return findSpecialty(c,id);
-        } catch(java.sql.SQLException e){if(e.getMessage()!=null&&e.getMessage().toLowerCase().contains("unique"))throw new IllegalArgumentException("Já existe uma especialidade com esse nome.");throw new RuntimeException("Erro ao atualizar especialidade.",e);}
-    }
-
-    @Override public void setSpecialtyActive(int id, boolean active) {
-        try(Connection c=DatabaseManager.getConnection()){
-            if(!active){try(PreparedStatement ps=c.prepareStatement("SELECT COUNT(*) FROM doctors WHERE specialty_id=? AND active=1")){ps.setInt(1,id);try(ResultSet r=ps.executeQuery()){if(r.next()&&r.getInt(1)>0)throw new IllegalArgumentException("Não é possível desativar uma especialidade que possui médicos ativos.");}}}
-            try(PreparedStatement ps=c.prepareStatement("UPDATE specialties SET active=? WHERE id=?")){ps.setInt(1,active?1:0);ps.setInt(2,id);if(ps.executeUpdate()==0)throw new IllegalArgumentException("Especialidade não encontrada.");}
-        } catch(RuntimeException e){throw e;} catch(Exception e){throw new RuntimeException("Erro ao alterar estado da especialidade.",e);}
-    }
-
-    private static String cleanName(String value){return value==null?"":value.trim().replaceAll("\\s+"," ");}
-    private static void validateName(String value,String message){if(value.isBlank())throw new IllegalArgumentException(message);}
-    private static void ensureSpecialtyExists(Connection c,int id,boolean active)throws Exception{try(PreparedStatement ps=c.prepareStatement("SELECT active FROM specialties WHERE id=?")){ps.setInt(1,id);try(ResultSet r=ps.executeQuery()){if(!r.next())throw new IllegalArgumentException("Especialidade não encontrada.");if(active&&r.getInt(1)==0)throw new IllegalArgumentException("A especialidade está desativada.");}}}
-    private static Doctor findDoctor(Connection c,int id)throws Exception{try(PreparedStatement ps=c.prepareStatement("SELECT d.id,d.full_name,s.name,d.active FROM doctors d JOIN specialties s ON s.id=d.specialty_id WHERE d.id=?")){ps.setInt(1,id);try(ResultSet r=ps.executeQuery()){return r.next()?new Doctor(r.getInt(1),r.getString(2),r.getString(3),r.getInt(4)!=0):null;}}}
-    private static Specialty findSpecialty(Connection c,int id)throws Exception{try(PreparedStatement ps=c.prepareStatement("SELECT id,name,active FROM specialties WHERE id=?")){ps.setInt(1,id);try(ResultSet r=ps.executeQuery()){return r.next()?new Specialty(r.getInt(1),r.getString(2),r.getInt(3)!=0):null;}}}
-}
+    struct DailySummaryData {
+        long appointmentsRegistered; long waiting; long attended; long absences; long cancellations;
+    };
+    struct AverageTime { string doctor; double averageWaitMinutes; double averageServiceMinutes; long completedCount; };
+    typedef sequence<AverageTime> AverageTimeList;
+    struct SpecialtyVolume { string specialty; long appointments; long absences; long cancellations; };
+    typedef sequence<SpecialtyVolume> SpecialtyVolumeList;
+    struct ReceptionStatisticsData {
+        long appointments; long attended; long patientsRegistered; long dropouts; long absences;
+        double averageWaitMinutes; double dropoutRate; double absenceRate;
+    };
+    struct DoctorStatistics { long consultationsToday; long consultationsMonth; double averageServiceMinutes; };
+    struct DiagnosisVolume { string diagnosis; long consultations; };
+    typedef sequence<DiagnosisVolume> DiagnosisVolumeList;
+    struct ClinicalNote {
+        long appointmentId; long patientId; string patientName; string doctor; string appointmentDate;
+        string diagnosis; string observations; string prescription; string createdAt;
+        string vitalSigns; string carePlan; string updatedAt;
+    };
+    typedef sequence<ClinicalNote> ClinicalNoteList;
+    struct AuditEntry { long id; string username; string action; string entityType; long entityId; string details; string createdAt; };
+    typedef sequence<AuditEntry> AuditEntryList;
+    struct SystemSetting { string key; string value; };
+    typedef sequence<SystemSetting> SystemSettingList;
+    interface ReportService {
+        DailySummaryData dailySummary(in string sessionToken, in string date);
+        AverageTimeList averageTimes(in string sessionToken, in string fromDate, in string toDate);
+        SpecialtyVolumeList specialtyVolumes(in string sessionToken, in string fromDate, in string toDate);
+        ReceptionStatisticsData receptionStatistics(in string sessionToken, in string fromDate, in string toDate);
+    };
+    interface DoctorService {
+        AppointmentList myAppointments(in string sessionToken);
+        ClinicalNoteList patientHistory(in string sessionToken, in long patientId);
+        ClinicalNote saveClinicalNote(in string sessionToken, in long appointmentId, in string diagnosis, in string observations, in string prescription);
+        ClinicalNote saveClinicalNoteExtended(in string sessionToken, in long appointmentId, in string diagnosis, in string observations, in string prescription, in string vitalSigns, in string carePlan);
+        void updateMyAppointmentStatus(in string sessionToken, in long appointmentId, in string status);
+        DoctorStatistics myStatistics(in string sessionToken, in string fromDate, in string toDate);
+        DiagnosisVolumeList diagnosisVolumes(in string sessionToken, in string fromDate, in string toDate);
+    };
+    interface AdminService {
+        AuditEntryList listAuditLogs(in string sessionToken, in string fromDate, in string toDate);
+        SystemSettingList listSettings(in string sessionToken);
+        void setSetting(in string sessionToken, in string key, in string value);
+    };
+};
