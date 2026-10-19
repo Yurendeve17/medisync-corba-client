@@ -10,5 +10,7 @@ services:
       - .env
     environment:
       TZ: ${TZ:-Africa/Maputo}
+      CORBA_NAME_SERVICE_HOST: ${CORBA_NAME_SERVICE_HOST:?Defina o IP ou DNS alcancavel do servidor CORBA}
+      CORBA_NAME_SERVICE_PORT: ${CORBA_NAME_SERVICE_PORT:-1050}
     ports:
       - "6080:6080"

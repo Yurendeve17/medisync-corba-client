@@ -1,4 +1,5 @@
 import os
+import socket
 import sys
 from pathlib import Path
 
@@ -32,23 +33,50 @@ NAME_SERVICE = (
 
 class CorbaClient:
     def __init__(self):
-        self.orb = CORBA.ORB_init(
-            ["-ORBInitRef", f"NameService={NAME_SERVICE}"],
-            CORBA.ORB_ID,
-        )
-
-        naming_object = self.orb.resolve_initial_references(
-            "NameService"
-        )
-
-        self.naming_context = naming_object._narrow(
-            CosNaming.NamingContext
-        )
-
-        if self.naming_context is None:
-            raise RuntimeError(
-                "Não foi possível obter o NamingContext."
+        self.orb = None
+        try:
+            print(
+                f"[CORBA] A verificar TCP em {NAME_SERVICE_HOST}:{NAME_SERVICE_PORT}...",
+                flush=True,
             )
+            try:
+                with socket.create_connection(
+                    (NAME_SERVICE_HOST, int(NAME_SERVICE_PORT)), timeout=3
+                ):
+                    pass
+            except OSError as error:
+                raise RuntimeError(
+                    f"O endereco {NAME_SERVICE_HOST}:{NAME_SERVICE_PORT} nao aceitou conexao TCP. "
+                    "Verifique se o Naming Service esta ativo e se a porta 1050 esta liberada "
+                    "entre as maquinas."
+                ) from error
+
+            print("[CORBA] TCP acessivel; a iniciar omniORB.", flush=True)
+            self.orb = CORBA.ORB_init(
+                [
+                    "-ORBInitRef", f"NameService={NAME_SERVICE}",
+                    "-ORBclientCallTimeOutPeriod", "15000",
+                    "-ORBclientConnectTimeOutPeriod", "5000",
+                ],
+                CORBA.ORB_ID,
+            )
+            naming_object = self.orb.resolve_initial_references("NameService")
+            self.naming_context = naming_object._narrow(CosNaming.NamingContext)
+            if self.naming_context is None:
+                raise RuntimeError("O Naming Service nao devolveu um NamingContext valido.")
+            print("[CORBA] Naming Service pronto.", flush=True)
+        except Exception as error:
+            if self.orb is not None:
+                try:
+                    self.orb.destroy()
+                except Exception:
+                    pass
+            raise RuntimeError(
+                f"Falha ao ligar ao Naming Service em {NAME_SERVICE_HOST}:{NAME_SERVICE_PORT}. "
+                "Confirme que o servidor esta ligado, que este endereco pertence a maquina do servidor "
+                "e que a porta TCP esta acessivel pela rede. "
+                f"Detalhe: {type(error).__name__}: {error}"
+            ) from error
 
     def _resolve_service(self, service_name, service_type):
         name = [

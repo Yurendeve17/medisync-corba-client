@@ -1,5 +1,5 @@
 import sys
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from application.medisync_app import MediSyncApp
 from gui.main_window import MainWindow
@@ -11,7 +11,21 @@ def main():
 
     apply_theme(app, dark=False)
 
-    medisync_app = MediSyncApp()
+    while True:
+        try:
+            medisync_app = MediSyncApp()
+            break
+        except Exception as error:
+            retry = QMessageBox.critical(
+                None,
+                "Ligacao ao servidor MediSync",
+                f"Nao foi possivel iniciar a ligacao CORBA.\n\n{error}\n\n"
+                "Corrija a ligacao ao servidor e escolha Tentar novamente.",
+                QMessageBox.Retry | QMessageBox.Cancel,
+                QMessageBox.Retry,
+            )
+            if retry != QMessageBox.Retry:
+                return
 
     try:
         window = MainWindow(medisync_app)

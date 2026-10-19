@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDate
 
+from .icons import pixmap, qicon, illustration
 from .icons import qicon
 from .profile_dialog import ProfileDialog
 from .result_dialog import ResultDialog
@@ -54,10 +55,29 @@ class DoctorDashboard(QWidget):
         sidebar.setFixedWidth(SIDEBAR_W)
         side = QVBoxLayout(sidebar)
         side.setContentsMargins(14, 22, 14, 18)
-        logo = QLabel("MediSync\nSistema Hospitalar")
-        logo.setObjectName("logo")
-        side.addWidget(logo)
-        side.addSpacing(22)
+        side.setSpacing(4)
+
+        logo_row = QHBoxLayout()
+        logo_row.setContentsMargins(6, 0, 0, 0)
+        logo_row.setSpacing(10)
+        logo_icon = QLabel()
+        logo_icon.setPixmap(pixmap("logo", "#12b86e", 42))
+        logo_icon.setFixedSize(42, 42)
+        logo_texts = QVBoxLayout()
+        logo_texts.setSpacing(0)
+        logo_text = QLabel("MediSync")
+        logo_text.setObjectName("logo")
+        logo_sub = QLabel("Sistema Hospitalar")
+        logo_sub.setObjectName("logoSubtitle")
+        logo_texts.addWidget(logo_text)
+        logo_texts.addWidget(logo_sub)
+        logo_row.addWidget(logo_icon)
+        logo_row.addLayout(logo_texts, 1)
+        side.addLayout(logo_row)
+        side.addSpacing(16)
+        side.addWidget(self._sidebar_divider())
+        side.addSpacing(12)
+
         self.nav_buttons = []
         for icon, label, index in (("home", "Início", 0), ("users", "Consultas", 0), ("bar-chart", "Estatísticas", 1)):
             item = NavItem(icon, label)
@@ -87,6 +107,12 @@ class DoctorDashboard(QWidget):
         self._refresh_timer = QTimer(self)
         self._refresh_timer.timeout.connect(self._auto_refresh)
         self._refresh_timer.start(REFRESH_MS)
+
+    def _sidebar_divider(self):
+        line = QFrame()
+        line.setObjectName("sidebarDivider")
+        line.setFixedHeight(1)
+        return line
 
     def _overview_page(self):
         page = QWidget()

@@ -6,6 +6,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QStackedWidget, QFrame,
 )
+
+from .icons import pixmap, qicon, illustration
 from .waiting_room import WaitingRoomWindow
 from .reception_dashboard import Sidebar, NavItem, SIDEBAR_W
 
@@ -25,10 +27,29 @@ class AdminDashboard(QWidget):
         sidebar.setFixedWidth(SIDEBAR_W)
         side = QVBoxLayout(sidebar)
         side.setContentsMargins(14, 22, 14, 18)
-        logo = QLabel("MediSync ? Sistema Hospitalar")
-        logo.setObjectName("logo")
-        side.addWidget(logo)
-        side.addSpacing(22)
+        side.setSpacing(4)
+
+        logo_row = QHBoxLayout()
+        logo_row.setContentsMargins(6, 0, 0, 0)
+        logo_row.setSpacing(10)
+        logo_icon = QLabel()
+        logo_icon.setPixmap(pixmap("logo", "#12b86e", 42))
+        logo_icon.setFixedSize(42, 42)
+        logo_texts = QVBoxLayout()
+        logo_texts.setSpacing(0)
+        logo_text = QLabel("MediSync")
+        logo_text.setObjectName("logo")
+        logo_sub = QLabel("Sistema Hospitalar")
+        logo_sub.setObjectName("logoSubtitle")
+        logo_texts.addWidget(logo_text)
+        logo_texts.addWidget(logo_sub)
+        logo_row.addWidget(logo_icon)
+        logo_row.addLayout(logo_texts, 1)
+        side.addLayout(logo_row)
+        side.addSpacing(16)
+        side.addWidget(self._sidebar_divider())
+        side.addSpacing(12)
+
         self.nav_buttons = []
         for icon, label, index in (("users", "Utilizadores", 0), ("stethoscope", "Medicos", 1), ("clipboard", "Auditoria", 2), ("settings", "Configuracoes", 3), ("bar-chart", "Estatisticas", 4)):
             item = NavItem(icon, label)
@@ -43,6 +64,7 @@ class AdminDashboard(QWidget):
         content = QVBoxLayout()
         content.setContentsMargins(0, 0, 0, 0)
         content.setSpacing(0)
+        
         header = QFrame()
         header.setObjectName("topbar")
         header_layout = QHBoxLayout(header)
@@ -50,6 +72,7 @@ class AdminDashboard(QWidget):
         title = QLabel("Administracao MediSync")
         title.setObjectName("pageTitle")
         self.user_label = QLabel()
+        
         self.user_label.setObjectName("userName")
         profile = QPushButton("Meu perfil / palavra-passe")
         profile.setObjectName("secondaryButton")
@@ -62,12 +85,20 @@ class AdminDashboard(QWidget):
         header_layout.addWidget(self.user_label)
         header_layout.addWidget(profile)
         header_layout.addWidget(logout)
+
+        
         content.addWidget(header)
         self.pages = QStackedWidget()
         for page in (self._users_page(), self._doctors_page(), self._audit_page(), self._settings_page(), self._reports_page()):
             self.pages.addWidget(page)
         content.addWidget(self.pages, 1)
         root.addLayout(content, 1)
+
+    def _sidebar_divider(self):
+        line = QFrame()
+        line.setObjectName("sidebarDivider")
+        line.setFixedHeight(1)
+        return line
 
     def _users_page(self):
         page = QWidget(); layout = QVBoxLayout(page)
